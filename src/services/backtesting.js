@@ -4,9 +4,9 @@
  */
 
 import { AlgorithmEngine } from './algorithmEngine.js'
-import { BacktestInstance, BacktestStatus, TradeRecord, BacktestResults } from '@/models/BacktestInstance.js'
-import { TradingData } from '@/models/TradingData.js'
-import { TradingSides } from '@/models/TradingAlgorithm.js'
+import { BacktestInstance, BacktestStatus, TradeRecord, BacktestResults } from '../models/BacktestInstance.js'
+import { TradingData } from '../models/TradingData.js'
+import { TradingSides } from '../models/TradingAlgorithm.js'
 
 /**
  * Backtesting Service class
@@ -114,7 +114,7 @@ export class BacktestingService {
           currentPosition = signal.side
           entryPrice = signal.price
           entryTime = signal.timestamp
-          
+
           currentTrade = new TradeRecord({
             entryTime: entryTime,
             side: signal.side,
@@ -135,7 +135,7 @@ export class BacktestingService {
             currentTrade.calculatePnL()
 
             backtest.addTrade(currentTrade)
-            backtest.addLog('info', 
+            backtest.addLog('info',
               `Exited ${currentPosition} position at ${signal.price}, P&L: ${currentTrade.pnl.toFixed(2)}`
             )
           }
@@ -171,7 +171,7 @@ export class BacktestingService {
       currentTrade.calculatePnL()
 
       backtest.addTrade(currentTrade)
-      backtest.addLog('info', 
+      backtest.addLog('info',
         `Closed ${currentPosition} position at end of data at ${lastCandle.close}, P&L: ${currentTrade.pnl.toFixed(2)}`
       )
     }
@@ -225,10 +225,10 @@ export class BacktestingService {
    */
   generateMockData(symbol, startDate, endDate, timeframe = '5m') {
     const tradingData = new TradingData(symbol)
-    
+
     const start = new Date(startDate)
     const end = new Date(endDate)
-    
+
     // Calculate timeframe in minutes
     const timeframeMinutes = timeframe === '1m' ? 1 :
                             timeframe === '5m' ? 5 :
@@ -238,7 +238,7 @@ export class BacktestingService {
 
     let currentTime = new Date(start)
     let currentPrice = symbol === 'MES' ? 4550 :
-                      symbol === 'MNQ' ? 15000 : 
+                      symbol === 'MNQ' ? 15000 :
                       symbol === 'ES' ? 4550 : 15000
 
     while (currentTime <= end) {
@@ -288,7 +288,7 @@ export class BacktestingService {
    */
   async runQuickBacktest(config, algorithm, onProgress = null, onComplete = null) {
     const { backtest, tradingData } = await this.createQuickBacktest(config)
-    
+
     return await this.runBacktest(
       backtest.id,
       algorithm,

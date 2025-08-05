@@ -2,7 +2,7 @@
  * Sample Trading Algorithms - JavaScript port of existing algorithm definitions
  */
 
-import { TradingAlgorithm, IndicatorConfig, TradingCondition } from '@/models/TradingAlgorithm.js'
+import { TradingAlgorithm, IndicatorConfig, TradingCondition } from '../models/TradingAlgorithm.js'
 
 /**
  * Trend Persistence Strategy
@@ -191,11 +191,11 @@ export const macdStrategy = new TradingAlgorithm({
     new IndicatorConfig({
       name: 'MACD',
       type: 'MACD',
-      parameters: { 
-        fastPeriod: 12, 
-        slowPeriod: 26, 
+      parameters: {
+        fastPeriod: 12,
+        slowPeriod: 26,
         signalPeriod: 9,
-        source: 'close' 
+        source: 'close'
       },
       description: 'MACD (12,26,9)'
     })

@@ -3,8 +3,8 @@
  * Processes trading algorithms and generates trading signals
  */
 
-import { TradingData } from '@/models/TradingData.js'
-import { TradingAlgorithm, TradingSides, ConditionTypes } from '@/models/TradingAlgorithm.js'
+import { TradingData } from '../models/TradingData.js'
+import { TradingAlgorithm, TradingSides, ConditionTypes } from '../models/TradingAlgorithm.js'
 import * as indicators from './indicators.js'
 
 /**

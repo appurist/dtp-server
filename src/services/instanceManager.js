@@ -3,7 +3,7 @@ import { AlgorithmEngine } from './algorithmEngine.js'
 import { tradingService } from './tradingService.js'
 import { historicalDataService } from './historicalData.js'
 import { marketDataService } from './marketData.js'
-import { TradingData } from '@/models/TradingData.js'
+import { TradingData } from '../models/TradingData.js'
 
 /**
  * Instance Manager Service - Manages live trading instances for DTP
