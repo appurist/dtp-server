@@ -490,10 +490,11 @@ export class TradingInstanceManager extends EventEmitter {
 
   /**
    * Get Project X accounts
+   * @param {boolean} onlyActiveAccounts - Filter to only active accounts (default: true)
    */
-  async getAccounts() {
+  async getAccounts(onlyActiveAccounts = true) {
     try {
-      return await projectXClient.getAccounts()
+      return await projectXClient.getAccounts(onlyActiveAccounts)
     } catch (error) {
       console.error('[TradingInstanceManager] Error getting accounts:', error.message)
       throw error

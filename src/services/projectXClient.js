@@ -133,9 +133,11 @@ export class ProjectXClient extends EventEmitter {
 
   /**
    * Get accounts
+   * @param {boolean} onlyActiveAccounts - Filter to only active accounts (default: true)
    */
-  async getAccounts() {
-    return this.makeRequest('/api/Account/search?onlyActiveAccounts=true', {
+  async getAccounts(onlyActiveAccounts = true) {
+    const url = `/api/Account/search?onlyActiveAccounts=${onlyActiveAccounts}`
+    return this.makeRequest(url, {
       method: 'POST'
     })
   }

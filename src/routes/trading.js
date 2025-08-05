@@ -66,12 +66,15 @@ router.post('/test-connection', async (req, res) => {
 });
 
 /**
- * GET /api/trading/accounts
+ * GET /api/trading/accounts?onlyActiveAccounts={boolean}
  * Get Project X accounts
  */
 router.get('/accounts', async (req, res) => {
   try {
-    const response = await tradingInstanceManager.getAccounts();
+    // Parse onlyActiveAccounts query parameter (default: true)
+    const onlyActiveAccounts = req.query.onlyActiveAccounts !== 'false'
+
+    const response = await tradingInstanceManager.getAccounts(onlyActiveAccounts);
 
     // ProjectX API already returns { success: true, accounts: [...] }
     // So we can return it directly without double-wrapping

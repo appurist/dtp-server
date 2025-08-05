@@ -152,8 +152,13 @@ Test the Project X API connection.
 }
 ```
 
-#### GET /api/trading/accounts
+#### GET /api/trading/accounts?onlyActiveAccounts={boolean}
 Get available Project X trading accounts.
+
+**Query Parameters:**
+- `onlyActiveAccounts` (optional): Filter to only active accounts (default: `true`)
+  - `true` - Returns only accounts where `canTrade=true` and `isVisible=true`
+  - `false` - Returns all accounts regardless of status
 
 **Response:**
 ```json
@@ -161,14 +166,29 @@ Get available Project X trading accounts.
   "success": true,
   "accounts": [
     {
-      "id": "123456789",
-      "name": "Practice Account",
-      "type": "PRACTICE",
-      "balance": 50000.00
+      "id": 1,
+      "name": "TEST_ACCOUNT_1",
+      "balance": 50000,
+      "canTrade": true,
+      "isVisible": true
+    },
+    {
+      "id": 2,
+      "name": "INACTIVE_ACCOUNT",
+      "balance": 25000,
+      "canTrade": false,
+      "isVisible": false
     }
   ]
 }
 ```
+
+**Usage Examples:**
+- `GET /api/trading/accounts` - Returns only active accounts (default)
+- `GET /api/trading/accounts?onlyActiveAccounts=true` - Returns only active accounts
+- `GET /api/trading/accounts?onlyActiveAccounts=false` - Returns all accounts
+
+**Note:** Account activity is determined by the `canTrade` and `isVisible` boolean fields. Active accounts typically have both set to `true`.
 
 #### GET /api/trading/contracts?query={symbol}
 Search for trading contracts.
