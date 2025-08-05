@@ -71,12 +71,11 @@ router.post('/test-connection', async (req, res) => {
  */
 router.get('/accounts', async (req, res) => {
   try {
-    const accounts = await tradingInstanceManager.getAccounts();
+    const response = await tradingInstanceManager.getAccounts();
 
-    res.json({
-      success: true,
-      accounts
-    });
+    // ProjectX API already returns { success: true, accounts: [...] }
+    // So we can return it directly without double-wrapping
+    res.json(response);
   } catch (error) {
     console.error('Error getting accounts:', error);
     res.status(500).json({
