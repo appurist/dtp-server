@@ -50,7 +50,7 @@ The server enforces exclusive use of port 3587:
 
 ## Authentication
 
-Currently, the server operates without authentication for local development. Project X credentials are managed through the trading API endpoints.
+The server operates without client authentication. All API endpoints are accessible to localhost clients without tokens or credentials. Project X authentication is handled internally by the server - clients never need to manage Project X tokens or credentials directly.
 
 ## REST API Endpoints
 
@@ -66,7 +66,9 @@ The server provides the following API route groups:
 - `/api/config` - Application configuration
 - `/api/historical` - Historical data management
 - `/api/logs` - Server logging
-- `/api/auth` - Authentication (Project X tokens)
+
+**Note**: All endpoints are accessible without authentication. The server handles Project X authentication internally.
+
 
 ### Health Check
 
@@ -230,6 +232,29 @@ Get available trading algorithms.
       "exitConditions": [...]
     }
   ]
+}
+```
+
+#### POST /api/algorithms
+Create or update a trading algorithm.
+
+**Request Body:**
+```json
+{
+  "name": "My-Strategy",
+  "description": "Custom trading strategy",
+  "indicators": [...],
+  "entryConditions": [...],
+  "exitConditions": [...]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Algorithm saved successfully",
+  "algorithm": { /* algorithm object */ }
 }
 ```
 
@@ -546,6 +571,40 @@ Export all user data.
 }
 ```
 
+#### POST /api/data/import
+Import user data from export file.
+
+**Request Body:**
+```json
+{
+  "version": "1.0",
+  "data": {
+    "uiConfig": { /* UI configuration */ },
+    "userSettings": { /* User settings */ },
+    "watchlists": { /* Watchlists */ }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Data imported successfully"
+}
+```
+
+#### DELETE /api/data/reset
+Reset all user data to defaults.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "All user data has been reset to defaults"
+}
+```
+
 ### Configuration Management
 
 #### GET /api/config
@@ -591,6 +650,65 @@ Update application configuration.
 {
   "theme": "dark",
   "defaultSymbol": "ES"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Configuration updated successfully"
+}
+```
+
+#### GET /api/config/preferences
+Get user preferences.
+
+**Response:**
+```json
+{
+  "success": true,
+  "preferences": {
+    "notifications": {
+      "enabled": true,
+      "sound": true
+    },
+    "trading": {
+      "confirmOrders": true,
+      "autoConnect": false
+    }
+  }
+}
+```
+
+#### PUT /api/config/preferences
+Update user preferences.
+
+**Request Body:**
+```json
+{
+  "notifications": {
+    "enabled": false
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Preferences updated successfully"
+}
+```
+
+#### POST /api/config/reset
+Reset configuration to defaults.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Configuration reset to defaults"
 }
 ```
 
@@ -652,11 +770,60 @@ Get historical data for a symbol and date range.
 }
 ```
 
+#### POST /api/historical/:symbol
+Save historical data for a symbol.
+
+**Request Body:**
+```json
+{
+  "date": "2024-08-02",
+  "data": [
+    {
+      "timestamp": "2024-08-02T09:30:00.000Z",
+      "open": 18500.00,
+      "high": 18525.00,
+      "low": 18495.00,
+      "close": 18520.00,
+      "volume": 1250
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Historical data saved successfully"
+}
+```
+
 #### DELETE /api/historical/:symbol?date={date}
 Delete historical data for a symbol and date.
 
 **Query Parameters:**
 - `date`: Date to delete (YYYY-MM-DD format)
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Historical data deleted successfully"
+}
+```
+
+#### GET /api/historical/:symbol/:date/exists
+Check if historical data exists for a symbol on a specific date.
+
+**Response:**
+```json
+{
+  "success": true,
+  "exists": true,
+  "symbol": "NQ",
+  "date": "2024-08-02"
+}
+```
 
 ### Logging
 
@@ -679,6 +846,23 @@ Get recent log entries.
 }
 ```
 
+#### GET /api/logs/files
+Get available log files.
+
+**Response:**
+```json
+{
+  "success": true,
+  "files": [
+    {
+      "name": "server-2024-08-02.log",
+      "size": "2.5 MB",
+      "modified": "2024-08-02T10:30:00.000Z"
+    }
+  ]
+}
+```
+
 #### POST /api/logs/cleanup
 Clean up old log files.
 
@@ -698,19 +882,7 @@ Clean up old log files.
 }
 ```
 
-### Authentication
 
-#### POST /api/auth/token
-Get authentication token for Project X API.
-
-**Response:**
-```json
-{
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresAt": "2024-08-03T10:30:00.000Z"
-}
-```
 
 ## WebSocket Events
 

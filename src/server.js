@@ -230,7 +230,7 @@ const startServer = async () => {
 console.log('');
 console.log('╔══════════════════════════════════════════════════════════════╗');
 console.log('║                    DayTradersPro Server                      ║');
-console.log('║                  Trading Engine v1.0.0                      ║');
+console.log('║                   Trading Engine v1.0.0                      ║');
 console.log('╚══════════════════════════════════════════════════════════════╝');
 console.log('');
 console.log(`🚀 Starting server on ${HOST}:${REQUIRED_PORT} (localhost-only)...`);
