@@ -54,6 +54,20 @@ Currently, the server operates without authentication for local development. Pro
 
 ## REST API Endpoints
 
+### Available Route Groups
+
+The server provides the following API route groups:
+
+- `/health` - Server health check
+- `/api/instances` - Trading instance management
+- `/api/trading` - Trading engine and Project X integration
+- `/api/data` - Data management (UI config, user settings, watchlists)
+- `/api/algorithms` - Algorithm definitions
+- `/api/config` - Application configuration
+- `/api/historical` - Historical data management
+- `/api/logs` - Server logging
+- `/api/auth` - Authentication (Project X tokens)
+
 ### Health Check
 
 #### GET /health
@@ -123,7 +137,7 @@ Get comprehensive server status including Project X connection.
 }
 ```
 
-**Note**: Connection configuration is managed server-side via `connection.json` file. No API endpoints are provided for updating credentials or URLs for security reasons.
+**Note**: Connection configuration is managed server-side via `connection.json` file. Sensitive credentials are not exposed through API endpoints for security reasons.
 
 #### POST /api/trading/test-connection
 Test the Project X API connection.
@@ -176,42 +190,7 @@ Search for trading contracts.
 }
 ```
 
-#### GET /api/trading/algorithms
-Get available trading algorithms.
 
-**Response:**
-```json
-{
-  "success": true,
-  "algorithms": [
-    {
-      "name": "Simple-MA-Crossover",
-      "description": "Simple moving average crossover strategy",
-      "version": "1.0",
-      "indicators": [...],
-      "entryConditions": [...],
-      "exitConditions": [...]
-    }
-  ]
-}
-```
-
-#### GET /api/trading/algorithms/{name}
-Get a specific algorithm configuration.
-
-**Response:**
-```json
-{
-  "success": true,
-  "algorithm": {
-    "name": "Simple-MA-Crossover",
-    "description": "Simple moving average crossover strategy",
-    "indicators": [...],
-    "entryConditions": [...],
-    "exitConditions": [...]
-  }
-}
-```
 
 #### GET /api/trading/status
 Get overall trading engine status.
@@ -229,6 +208,28 @@ Get overall trading engine status.
     "totalTrades": 45,
     "algorithms": 3
   }
+}
+```
+
+### Algorithm Management
+
+#### GET /api/algorithms
+Get available trading algorithms.
+
+**Response:**
+```json
+{
+  "success": true,
+  "algorithms": [
+    {
+      "name": "Simple-MA-Crossover",
+      "description": "Simple moving average crossover strategy",
+      "version": "1.0",
+      "indicators": [...],
+      "entryConditions": [...],
+      "exitConditions": [...]
+    }
+  ]
 }
 ```
 
@@ -426,6 +427,291 @@ Get trade history for an instance.
 }
 ```
 
+### Data Management
+
+#### GET /api/data/ui-config
+Get UI configuration (layouts, themes, preferences).
+
+**Response:**
+```json
+{
+  "success": true,
+  "config": {
+    "theme": "dark",
+    "layout": "default",
+    "chartSettings": {
+      "timeframe": "1m",
+      "indicators": [],
+      "overlays": []
+    },
+    "dashboardLayout": {
+      "instances": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "charts": { "x": 6, "y": 0, "w": 6, "h": 8 },
+      "logs": { "x": 0, "y": 4, "w": 6, "h": 4 },
+      "performance": { "x": 0, "y": 8, "w": 12, "h": 4 }
+    },
+    "preferences": {
+      "autoConnect": true,
+      "showNotifications": true,
+      "soundEnabled": true,
+      "confirmActions": true
+    }
+  }
+}
+```
+
+#### POST /api/data/ui-config
+Update UI configuration.
+
+**Request Body:**
+```json
+{
+  "theme": "light",
+  "preferences": {
+    "autoConnect": false
+  }
+}
+```
+
+#### GET /api/data/user-settings
+Get user settings (credentials, API endpoints, etc.).
+
+**Response:**
+```json
+{
+  "success": true,
+  "settings": {
+    "projectX": {
+      "apiUrl": "https://api.topstepx.com",
+      "websocketUrl": "wss://rtc.topstepx.com",
+      "username": "",
+      "rememberCredentials": false
+    },
+    "trading": {
+      "defaultAccount": "",
+      "defaultCommission": 2.80,
+      "riskManagement": {
+        "maxDailyLoss": 1000,
+        "maxPositionSize": 5,
+        "stopLossEnabled": true
+      }
+    },
+    "notifications": {
+      "email": "",
+      "enableEmailAlerts": false,
+      "enableDesktopNotifications": true,
+      "alertOnSignals": true,
+      "alertOnErrors": true
+    }
+  }
+}
+```
+
+#### POST /api/data/user-settings
+Update user settings.
+
+#### GET /api/data/watchlists
+Get saved watchlists.
+
+**Response:**
+```json
+{
+  "success": true,
+  "watchlists": {
+    "default": {
+      "name": "Default",
+      "symbols": ["NQ", "ES", "YM", "RTY"],
+      "created": "2024-08-02T10:00:00.000Z"
+    }
+  }
+}
+```
+
+#### POST /api/data/watchlists
+Update watchlists.
+
+#### GET /api/data/export
+Export all user data.
+
+**Response:**
+```json
+{
+  "version": "1.0",
+  "exportDate": "2024-08-02T10:30:00.000Z",
+  "data": {
+    "uiConfig": { /* UI configuration */ },
+    "userSettings": { /* User settings */ },
+    "watchlists": { /* Watchlists */ }
+  }
+}
+```
+
+### Configuration Management
+
+#### GET /api/config
+Get application configuration.
+
+**Response:**
+```json
+{
+  "success": true,
+  "config": {
+    "theme": "light",
+    "defaultSymbol": "NQ",
+    "defaultAccount": "",
+    "backtestSettings": {
+      "lagTicks": 1,
+      "defaultStartDate": null,
+      "defaultEndDate": null
+    },
+    "chartSettings": {
+      "candlestickHeight": 400,
+      "indicatorHeight": 300,
+      "showVolume": true
+    },
+    "tradingSettings": {
+      "confirmOrders": true,
+      "maxPositionSize": 10,
+      "riskPerTrade": 0.02
+    },
+    "uiSettings": {
+      "autoRefresh": true,
+      "refreshInterval": 5000,
+      "showNotifications": true
+    }
+  }
+}
+```
+
+#### POST /api/config
+Update application configuration.
+
+**Request Body:**
+```json
+{
+  "theme": "dark",
+  "defaultSymbol": "ES"
+}
+```
+
+### Historical Data Management
+
+#### GET /api/historical/stats
+Get storage statistics for historical data.
+
+**Response:**
+```json
+{
+  "success": true,
+  "stats": {
+    "totalFiles": 150,
+    "totalSize": "2.5 GB",
+    "symbols": ["NQ", "ES", "YM"],
+    "dateRange": {
+      "earliest": "2024-01-01",
+      "latest": "2024-08-02"
+    }
+  }
+}
+```
+
+#### GET /api/historical/:symbol/dates
+Get available data dates for a symbol.
+
+**Response:**
+```json
+{
+  "success": true,
+  "symbol": "NQ",
+  "dates": ["2024-08-01", "2024-08-02"]
+}
+```
+
+#### GET /api/historical/:symbol?startDate={date}&endDate={date}
+Get historical data for a symbol and date range.
+
+**Query Parameters:**
+- `startDate`: Start date (YYYY-MM-DD format)
+- `endDate`: End date (YYYY-MM-DD format)
+
+**Response:**
+```json
+{
+  "success": true,
+  "symbol": "NQ",
+  "data": [
+    {
+      "timestamp": "2024-08-02T09:30:00.000Z",
+      "open": 18500.00,
+      "high": 18525.00,
+      "low": 18495.00,
+      "close": 18520.00,
+      "volume": 1250
+    }
+  ]
+}
+```
+
+#### DELETE /api/historical/:symbol?date={date}
+Delete historical data for a symbol and date.
+
+**Query Parameters:**
+- `date`: Date to delete (YYYY-MM-DD format)
+
+### Logging
+
+#### GET /api/logs?limit={number}&level={level}
+Get recent log entries.
+
+**Query Parameters:**
+- `limit` (optional): Number of log entries to return (default: 100)
+- `level` (optional): Log level filter
+
+**Response:**
+```json
+{
+  "success": true,
+  "logs": [
+    "[2024-08-02T10:30:00.000Z] INFO: Server started successfully",
+    "[2024-08-02T10:29:00.000Z] DEBUG: Loading configuration..."
+  ],
+  "count": 2
+}
+```
+
+#### POST /api/logs/cleanup
+Clean up old log files.
+
+**Request Body:**
+```json
+{
+  "daysToKeep": 30
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Cleaned up 5 old log files",
+  "deletedCount": 5
+}
+```
+
+### Authentication
+
+#### POST /api/auth/token
+Get authentication token for Project X API.
+
+**Response:**
+```json
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresAt": "2024-08-03T10:30:00.000Z"
+}
+```
+
 ## WebSocket Events
 
 ### Client → Server Events
@@ -513,6 +799,7 @@ Common HTTP status codes:
 | `watchlists.json` | Symbol watchlists | Saved symbol lists and categories |
 | `historical/` | Historical data cache | Cached market data for backtesting |
 | `logs/` | Application logs | Server and trading activity logs |
+| `config.json` | Application configuration | General app settings and preferences |
 
 ### Client-Side Storage (Temporary)
 
