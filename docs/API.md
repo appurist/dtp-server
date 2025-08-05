@@ -156,9 +156,9 @@ Test the Project X API connection.
 Get available Project X trading accounts.
 
 **Query Parameters:**
-- `onlyActiveAccounts` (optional): Filter to only active accounts (default: `true`)
-  - `true` - Returns only accounts where `canTrade=true` and `isVisible=true`
-  - `false` - Returns all accounts regardless of status
+- `onlyActiveAccounts` (optional): Filter to only active accounts (default: `true`).
+  - `true` - Returns only active accounts (default).
+  - `false` - Returns all accounts regardless of status.
 
 **Response:**
 ```json
