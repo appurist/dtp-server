@@ -24,8 +24,8 @@ export class ProjectXClient extends EventEmitter {
   /**
    * Set credentials for authentication
    */
-  setCredentials(username, password) {
-    this.credentials = { username, password }
+  setCredentials(username, apiKey) {
+    this.credentials = { username, apiKey }
     this.token = null
     this.tokenExpiry = null
   }
@@ -53,13 +53,13 @@ export class ProjectXClient extends EventEmitter {
 
   async _performAuthentication() {
     try {
-      const response = await fetch(`${this.baseURL}/Auth/loginKey`, {
+      const response = await fetch(`${this.baseURL}/api/Auth/loginKey`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          username: this.credentials.username,
+          userName: this.credentials.username,
           apiKey: this.credentials.apiKey
         }),
         signal: AbortSignal.timeout(10000)
@@ -117,6 +117,9 @@ export class ProjectXClient extends EventEmitter {
 
     if (options.body) {
       config.body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body)
+    } else if (config.method === 'POST') {
+      // Some APIs require a body for POST requests, even if empty
+      config.body = '{}'
     }
 
     const response = await fetch(`${this.baseURL}${endpoint}`, config)
@@ -132,7 +135,9 @@ export class ProjectXClient extends EventEmitter {
    * Get accounts
    */
   async getAccounts() {
-    return this.makeRequest('/api/Account/search')
+    return this.makeRequest('/api/Account/search?onlyActiveAccounts=true', {
+      method: 'POST'
+    })
   }
 
   /**
