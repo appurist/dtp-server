@@ -1,25 +1,104 @@
-import { indicators } from './indicators.js'
+/**
+ * Algorithm Engine - JavaScript port of C# AlgorithmEngine
+ * Processes trading algorithms and generates trading signals
+ */
+
+import { TradingData } from '@/models/TradingData.js'
+import { TradingAlgorithm, TradingSides, ConditionTypes } from '@/models/TradingAlgorithm.js'
+import * as indicators from './indicators.js'
 
 /**
- * Algorithm Engine for processing trading algorithms and generating signals
- * Based on the C# AlgorithmEngine implementation
+ * Trading signal object
+ */
+export class TradingSignal {
+  constructor(data = {}) {
+    this.timestamp = data.timestamp || new Date().toISOString()
+    this.type = data.type || 'ENTRY' // ENTRY or EXIT
+    this.side = data.side || 'LONG' // LONG or SHORT
+    this.price = data.price || 0
+    this.confidence = data.confidence || 0
+    this.conditions = data.conditions || []
+    this.indicators = data.indicators || {}
+  }
+}
+
+/**
+ * Algorithm Engine class
  */
 export class AlgorithmEngine {
+  constructor() {
+    this.algorithm = null
+    this.tradingData = null
+    this.currentPosition = TradingSides.NONE
+    this.lastSignal = null
+    this.debugMode = false
+  }
+
+  /**
+   * Load a trading algorithm
+   */
+  loadAlgorithm(algorithm) {
+    if (algorithm instanceof TradingAlgorithm) {
+      this.algorithm = algorithm
+    } else {
+      this.algorithm = TradingAlgorithm.fromJSON(algorithm)
+    }
+
+    console.log(`Algorithm loaded: ${this.algorithm.name}`)
+    return true
+  }
+
+  /**
+   * Set trading data
+   */
+  setTradingData(tradingData) {
+    if (tradingData instanceof TradingData) {
+      this.tradingData = tradingData
+    } else {
+      this.tradingData = TradingData.fromJSON(tradingData)
+    }
+
+    // Calculate all indicators when data is set
+    if (this.algorithm) {
+      this.calculateIndicators()
+    }
+  }
+
+  /**
+   * Set current position
+   */
+  setCurrentPosition(position) {
+    this.currentPosition = position || TradingSides.NONE
+  }
+
+  /**
+   * Reset the engine state
+   */
+  reset() {
+    this.currentPosition = TradingSides.NONE
+    this.lastSignal = null
+  }
+
   /**
    * Calculate all indicators defined in the algorithm
    */
-  static calculateIndicators(algorithm, tradingData) {
-    try {
-      for (const indicatorConfig of algorithm.indicators) {
-        this.calculateIndicator(indicatorConfig, tradingData)
-      }
+  calculateIndicators() {
+    if (!this.algorithm || !this.tradingData) {
+      console.warn('Algorithm or trading data not loaded')
+      return
+    }
 
-      // Debug logging for indicators
-      if (Object.keys(tradingData.indicators).length === 0) {
-        console.log(`[AlgorithmEngine] Warning: No indicators calculated for ${algorithm.name} (data count: ${tradingData.count})`)
+    try {
+      this.algorithm.indicators.forEach(indicatorConfig => {
+        this.calculateIndicator(indicatorConfig)
+      })
+
+      if (this.debugMode) {
+        console.log(`Calculated ${this.algorithm.indicators.length} indicators for ${this.algorithm.name}`)
+        console.log('Available indicators:', this.tradingData.getIndicatorNames())
       }
     } catch (error) {
-      console.error(`[AlgorithmEngine] Error calculating indicators for algorithm ${algorithm.name}: ${error.message}`)
+      console.error(`Error calculating indicators for algorithm ${this.algorithm.name}:`, error)
       throw error
     }
   }
@@ -27,340 +106,448 @@ export class AlgorithmEngine {
   /**
    * Calculate a single indicator
    */
-  static calculateIndicator(config, tradingData) {
+  calculateIndicator(config) {
+    const { name, type, parameters } = config
+
     try {
-      switch (config.type.toUpperCase()) {
+      let values = []
+
+      switch (type.toUpperCase()) {
         case 'SMA':
-          this.calculateSMA(config, tradingData)
+          values = indicators.calculateSMA(
+            this.tradingData.getPriceData(parameters.source || 'close'),
+            parameters.period
+          )
           break
+
         case 'EMA':
-          this.calculateEMA(config, tradingData)
+          values = indicators.calculateEMA(
+            this.tradingData.getPriceData(parameters.source || 'close'),
+            parameters.period
+          )
           break
+
         case 'RSI':
-          this.calculateRSI(config, tradingData)
+          values = indicators.calculateRSI(
+            this.tradingData.getPriceData(parameters.source || 'close'),
+            parameters.period || 14
+          )
           break
-        case 'VWAP':
-          this.calculateVWAP(config, tradingData)
-          break
+
         case 'MACD':
-          this.calculateMACD(config, tradingData)
+          const macdResult = indicators.calculateMACD(
+            this.tradingData.getPriceData(parameters.source || 'close'),
+            parameters.fastPeriod || 12,
+            parameters.slowPeriod || 26,
+            parameters.signalPeriod || 9
+          )
+          values = macdResult.macd
+          // Also store signal and histogram
+          this.tradingData.setIndicator(`${name}_Signal`, macdResult.signal)
+          this.tradingData.setIndicator(`${name}_Histogram`, macdResult.histogram)
           break
+
+        case 'MACDSIGNAL':
+          // This should be calculated as part of MACD
+          const baseMACD = parameters.source || name.replace('_Signal', '')
+          if (this.tradingData.hasIndicator(`${baseMACD}_Signal`)) {
+            values = this.tradingData.getIndicator(`${baseMACD}_Signal`)
+          }
+          break
+
+        case 'MACDHISTOGRAM':
+          // This should be calculated as part of MACD
+          const baseMACDHist = parameters.source || name.replace('_Histogram', '')
+          if (this.tradingData.hasIndicator(`${baseMACDHist}_Histogram`)) {
+            values = this.tradingData.getIndicator(`${baseMACDHist}_Histogram`)
+          }
+          break
+
+        case 'STOCHASTICK':
+          values = indicators.calculateStochasticK(
+            this.tradingData.highs,
+            this.tradingData.lows,
+            this.tradingData.closes,
+            parameters.period || 14
+          )
+          break
+
+        case 'STOCHASTICD':
+          const stochK = this.tradingData.getIndicator(parameters.source || 'StochasticK')
+          values = indicators.calculateStochasticD(stochK, parameters.period || 3)
+          break
+
         case 'ATR':
-          this.calculateATR(config, tradingData)
+          values = indicators.calculateATR(
+            this.tradingData.highs,
+            this.tradingData.lows,
+            this.tradingData.closes,
+            parameters.period || 14
+          )
           break
+
+        case 'VWAP':
+          values = indicators.calculateVWAP(
+            this.tradingData.highs,
+            this.tradingData.lows,
+            this.tradingData.closes,
+            this.tradingData.volumes
+          )
+          break
+
+        case 'MFI':
+          values = indicators.calculateMFI(
+            this.tradingData.highs,
+            this.tradingData.lows,
+            this.tradingData.closes,
+            this.tradingData.volumes,
+            parameters.period || 14
+          )
+          break
+
+        case 'SD':
+          values = indicators.calculateSD(
+            this.tradingData.getPriceData(parameters.source || 'close'),
+            parameters.period
+          )
+          break
+
+        case 'PO':
+          values = indicators.calculatePO(
+            this.tradingData.getPriceData(parameters.source || 'close'),
+            parameters.fastPeriod,
+            parameters.slowPeriod
+          )
+          break
+
+        case 'SLOPE':
+          const sourceData = parameters.source ?
+            this.tradingData.getIndicator(parameters.source) :
+            this.tradingData.getPriceData('close')
+          values = indicators.calculateSlope(sourceData, parameters.period || 5)
+          break
+
+        case 'DIFFERENCE':
+          const data1 = this.tradingData.getIndicator(parameters.source1)
+          const data2 = this.tradingData.getIndicator(parameters.source2)
+          values = indicators.calculateDifference(data1, data2)
+          break
+
+        case 'STRENGTH':
+          values = indicators.calculateStrength(
+            this.tradingData.getPriceData(parameters.source || 'close'),
+            parameters.period || 14
+          )
+          break
+
         default:
-          console.log(`[AlgorithmEngine] Unknown indicator type: ${config.type}`)
-          break
+          console.warn(`Unknown indicator type: ${type}`)
+          return
       }
+
+      // Store the calculated values
+      this.tradingData.setIndicator(name, values)
+
+      if (this.debugMode) {
+        console.log(`Calculated ${name} (${type}): ${values.length} values`)
+      }
+
     } catch (error) {
-      console.error(`[AlgorithmEngine] Error calculating indicator ${config.name} of type ${config.type}: ${error.message}`)
+      console.error(`Error calculating indicator ${name} (${type}):`, error)
       throw error
     }
   }
 
-  static calculateSMA(config, tradingData) {
-    const period = this.getIntParameter(config.parameters, 'period', 20)
-    const priceType = this.getStringParameter(config.parameters, 'priceType', 'median')
-    const prices = this.getPriceArray(tradingData, priceType)
-    const result = indicators.SMA(prices, period)
-    tradingData.storeIndicator(config.name, result)
-  }
-
-  static calculateEMA(config, tradingData) {
-    const period = this.getIntParameter(config.parameters, 'period', 20)
-    const priceType = this.getStringParameter(config.parameters, 'priceType', 'median')
-    const prices = this.getPriceArray(tradingData, priceType)
-    const result = indicators.EMA(prices, period)
-    tradingData.storeIndicator(config.name, result)
-  }
-
-  static calculateRSI(config, tradingData) {
-    const period = this.getIntParameter(config.parameters, 'period', 14)
-    const result = indicators.RSI(tradingData.close, period)
-    tradingData.storeIndicator(config.name, result)
-  }
-
-  static calculateVWAP(config, tradingData) {
-    const result = indicators.VWAP(tradingData.close, tradingData.volume)
-    tradingData.storeIndicator(config.name, result)
-  }
-
-  static calculateMACD(config, tradingData) {
-    const fastPeriod = this.getIntParameter(config.parameters, 'fastPeriod', 12)
-    const slowPeriod = this.getIntParameter(config.parameters, 'slowPeriod', 26)
-    const priceType = this.getStringParameter(config.parameters, 'priceType', 'close')
-    const prices = this.getPriceArray(tradingData, priceType)
-    const result = indicators.MACD(prices, fastPeriod, slowPeriod)
-    tradingData.storeIndicator(config.name, result)
-  }
-
-  static calculateATR(config, tradingData) {
-    const period = this.getIntParameter(config.parameters, 'period', 14)
-    const result = indicators.ATR(tradingData.high, tradingData.low, tradingData.close, period)
-    tradingData.storeIndicator(config.name, result)
-  }
-
   /**
-   * Evaluate entry conditions for a trading algorithm
+   * Process the algorithm and generate signals
    */
-  static evaluateEntryConditions(algorithm, tradingData, index = 1) {
-    try {
-      // Check if we have enough data
-      if (tradingData.count <= index) {
-        return { longEntry: false, shortEntry: false, signal: '' }
-      }
-
-      // Use AND logic for entry conditions by default - all conditions must be met
-      let allLongMet = true
-      let allShortMet = true
-      const signals = []
-
-      for (const condition of algorithm.entryConditions) {
-        const { conditionMet, side, conditionSignal } = this.evaluateCondition(condition, tradingData, index)
-
-        if (!conditionMet) {
-          // If any condition fails, entry is not possible
-          allLongMet = false
-          allShortMet = false
-          break
-        }
-
-        // Check if this condition supports the required side
-        if (side !== 'LONG' && side !== 'BOTH') {
-          allLongMet = false
-        }
-        if (side !== 'SHORT' && side !== 'BOTH') {
-          allShortMet = false
-        }
-
-        if (conditionSignal) {
-          signals.push(conditionSignal)
-        }
-      }
-
-      const longEntry = allLongMet && algorithm.entryConditions.length > 0
-      const shortEntry = allShortMet && algorithm.entryConditions.length > 0
-      const combinedSignal = signals.length > 0 ? signals.join(', ') : ''
-
-      return { longEntry, shortEntry, signal: combinedSignal }
-    } catch (error) {
-      console.error(`[AlgorithmEngine] Error evaluating entry conditions for algorithm ${algorithm.name}: ${error.message}`)
-      return { longEntry: false, shortEntry: false, signal: '' }
+  processAlgorithm(currentIndex = null) {
+    if (!this.algorithm || !this.tradingData) {
+      console.warn('Algorithm or trading data not loaded')
+      return null
     }
-  }
 
-  /**
-   * Evaluate exit conditions for a trading algorithm
-   */
-  static evaluateExitConditions(algorithm, tradingData, currentSide, entryPrice, currentPrice, currentPnLDollars, index = 1) {
-    try {
-      // Check if we have enough data
-      if (tradingData.count <= index) {
-        return { shouldExit: false, signal: '' }
-      }
+    const index = currentIndex !== null ? currentIndex : this.tradingData.count - 1
 
-      // Evaluate each exit condition (any can trigger exit)
-      for (const condition of algorithm.exitConditions) {
-        let conditionMet, side, conditionSignal
-
-        // Special handling for position-aware conditions
-        if (condition.type.toLowerCase() === 'position-pnl') {
-          ({ conditionMet, side, conditionSignal } = this.evaluatePositionPnLCondition(condition, currentPnLDollars, currentSide))
-        } else {
-          ({ conditionMet, side, conditionSignal } = this.evaluateCondition(condition, tradingData, index))
-        }
-
-        if (conditionMet && (side === currentSide || side === 'BOTH')) {
-          return { shouldExit: true, signal: conditionSignal }
-        }
-      }
-
-      return { shouldExit: false, signal: '' }
-    } catch (error) {
-      console.error(`[AlgorithmEngine] Error evaluating exit conditions for algorithm ${algorithm.name}: ${error.message}`)
-      return { shouldExit: false, signal: '' }
+    if (index < 0 || index >= this.tradingData.count) {
+      return null
     }
+
+    // Check entry conditions if we don't have a position
+    if (this.currentPosition === TradingSides.NONE) {
+      const entrySignal = this.evaluateEntryConditions(index)
+      if (entrySignal) {
+        this.lastSignal = entrySignal
+        return entrySignal
+      }
+    }
+
+    // Check exit conditions if we have a position
+    if (this.currentPosition !== TradingSides.NONE) {
+      const exitSignal = this.evaluateExitConditions(index)
+      if (exitSignal) {
+        this.lastSignal = exitSignal
+        return exitSignal
+      }
+    }
+
+    return null
   }
 
   /**
-   * Evaluate a single trading condition
+   * Evaluate entry conditions
    */
-  static evaluateCondition(condition, tradingData, index) {
+  evaluateEntryConditions(index) {
+    if (!this.algorithm.entryConditions || this.algorithm.entryConditions.length === 0) {
+      return null
+    }
+
+    const longConditions = []
+    const shortConditions = []
+
+    // Evaluate each condition
+    for (const condition of this.algorithm.entryConditions) {
+      const result = this.evaluateCondition(condition, index)
+
+      if (result.long) {
+        longConditions.push({ condition, result: true })
+      }
+      if (result.short) {
+        shortConditions.push({ condition, result: true })
+      }
+    }
+
+    // Check if all conditions are met for LONG
+    const longConditionsNeeded = this.algorithm.entryConditions.filter(c =>
+      c.side === TradingSides.LONG || c.side === TradingSides.BOTH
+    ).length
+
+    if (longConditions.length === longConditionsNeeded && longConditionsNeeded > 0) {
+      return new TradingSignal({
+        type: 'ENTRY',
+        side: TradingSides.LONG,
+        price: this.tradingData.closes[index],
+        timestamp: new Date(this.tradingData.timestamps[index] * 1000).toISOString(),
+        conditions: longConditions,
+        indicators: this.getCurrentIndicatorValues(index)
+      })
+    }
+
+    // Check if all conditions are met for SHORT
+    const shortConditionsNeeded = this.algorithm.entryConditions.filter(c =>
+      c.side === TradingSides.SHORT || c.side === TradingSides.BOTH
+    ).length
+
+    if (shortConditions.length === shortConditionsNeeded && shortConditionsNeeded > 0) {
+      return new TradingSignal({
+        type: 'ENTRY',
+        side: TradingSides.SHORT,
+        price: this.tradingData.closes[index],
+        timestamp: new Date(this.tradingData.timestamps[index] * 1000).toISOString(),
+        conditions: shortConditions,
+        indicators: this.getCurrentIndicatorValues(index)
+      })
+    }
+
+    return null
+  }
+
+  /**
+   * Evaluate exit conditions
+   */
+  evaluateExitConditions(index) {
+    if (!this.algorithm.exitConditions || this.algorithm.exitConditions.length === 0) {
+      return null
+    }
+
+    // For exit conditions, ANY condition being true triggers an exit
+    for (const condition of this.algorithm.exitConditions) {
+      const result = this.evaluateCondition(condition, index)
+
+      // Check if condition applies to current position
+      const appliesToPosition = condition.side === TradingSides.BOTH ||
+                               condition.side === this.currentPosition
+
+      if (appliesToPosition && (result.long || result.short)) {
+        return new TradingSignal({
+          type: 'EXIT',
+          side: this.currentPosition,
+          price: this.tradingData.closes[index],
+          timestamp: new Date(this.tradingData.timestamps[index] * 1000).toISOString(),
+          conditions: [{ condition, result: true }],
+          indicators: this.getCurrentIndicatorValues(index)
+        })
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Evaluate a single condition
+   */
+  evaluateCondition(condition, index) {
+    const result = { long: false, short: false }
+
     try {
       switch (condition.type.toLowerCase()) {
-        case 'threshold':
-          return this.evaluateThresholdCondition(condition, tradingData, index)
-        case 'crossover':
-          return this.evaluateCrossoverCondition(condition, tradingData, index)
-        case 'slope':
-          return this.evaluateSlopeCondition(condition, tradingData, index)
+        case ConditionTypes.THRESHOLD:
+          return this.evaluateThresholdCondition(condition, index)
+
+        case ConditionTypes.CROSSOVER:
+          return this.evaluateCrossoverCondition(condition, index)
+
+        case ConditionTypes.SLOPE:
+          return this.evaluateSlopeCondition(condition, index)
+
         default:
-          return { conditionMet: false, side: 'NONE', conditionSignal: '' }
+          console.warn(`Unknown condition type: ${condition.type}`)
+          return result
       }
     } catch (error) {
-      console.error(`[AlgorithmEngine] Error evaluating condition of type ${condition.type}: ${error.message}`)
-      return { conditionMet: false, side: 'NONE', conditionSignal: '' }
+      console.error(`Error evaluating condition:`, error)
+      return result
     }
   }
 
-  static evaluateThresholdCondition(condition, tradingData, index) {
-    const indicatorName = this.getStringParameter(condition.parameters, 'indicator', '')
-    const threshold = this.getDoubleParameter(condition.parameters, 'threshold', 0.0)
-    const comparison = this.getStringParameter(condition.parameters, 'comparison', '>')
+  /**
+   * Get current indicator values at index
+   */
+  getCurrentIndicatorValues(index) {
+    const values = {}
 
-    if (!tradingData.indicators[indicatorName]) {
-      return { conditionMet: false, side: 'NONE', conditionSignal: '' }
+    for (const indicatorName of this.tradingData.getIndicatorNames()) {
+      values[indicatorName] = this.tradingData.getIndicatorValue(indicatorName, index)
     }
 
-    const indicatorValues = tradingData.indicators[indicatorName]
-    if (indicatorValues.length <= index) {
-      return { conditionMet: false, side: 'NONE', conditionSignal: '' }
+    return values
+  }
+
+  /**
+   * Evaluate threshold condition
+   */
+  evaluateThresholdCondition(condition, index) {
+    const { indicator, threshold, comparison } = condition.parameters
+    const result = { long: false, short: false }
+
+    const indicatorValue = this.tradingData.getIndicatorValue(indicator, index)
+    if (indicatorValue === null || indicatorValue === undefined) {
+      return result
     }
 
-    const value = indicatorValues[indicatorValues.length - 1 - index]
-    let met = false
-
+    let conditionMet = false
     switch (comparison) {
       case '>':
-        met = value > threshold
+        conditionMet = indicatorValue > threshold
         break
       case '<':
-        met = value < threshold
+        conditionMet = indicatorValue < threshold
         break
       case '>=':
-        met = value >= threshold
+        conditionMet = indicatorValue >= threshold
         break
       case '<=':
-        met = value <= threshold
+        conditionMet = indicatorValue <= threshold
+        break
+      case '==':
+        conditionMet = Math.abs(indicatorValue - threshold) < 0.0001
+        break
+      case '!=':
+        conditionMet = Math.abs(indicatorValue - threshold) >= 0.0001
         break
     }
 
-    const signal = met ? `${indicatorName}: ${value.toFixed(4)} ${comparison} ${threshold.toFixed(4)}` : ''
-    return { conditionMet: met, side: condition.side, conditionSignal: signal }
+    if (conditionMet) {
+      if (condition.side === TradingSides.LONG || condition.side === TradingSides.BOTH) {
+        result.long = true
+      }
+      if (condition.side === TradingSides.SHORT || condition.side === TradingSides.BOTH) {
+        result.short = condition.symmetric ? !result.long : true
+      }
+    }
+
+    return result
   }
 
-  static evaluateCrossoverCondition(condition, tradingData, index) {
-    const indicator1 = this.getStringParameter(condition.parameters, 'indicator1', '')
-    const indicator2 = this.getStringParameter(condition.parameters, 'indicator2', '')
-    const direction = this.getStringParameter(condition.parameters, 'direction', 'above')
+  /**
+   * Evaluate crossover condition
+   */
+  evaluateCrossoverCondition(condition, index) {
+    const { indicator1, indicator2, direction } = condition.parameters
+    const result = { long: false, short: false }
 
-    if (!tradingData.indicators[indicator1] || !tradingData.indicators[indicator2]) {
-      return { conditionMet: false, side: 'NONE', conditionSignal: '' }
+    if (index < 1) return result // Need at least 2 data points
+
+    const current1 = this.tradingData.getIndicatorValue(indicator1, index)
+    const current2 = this.tradingData.getIndicatorValue(indicator2, index)
+    const previous1 = this.tradingData.getIndicatorValue(indicator1, index - 1)
+    const previous2 = this.tradingData.getIndicatorValue(indicator2, index - 1)
+
+    if (current1 === null || current2 === null || previous1 === null || previous2 === null) {
+      return result
     }
-
-    const values1 = tradingData.indicators[indicator1]
-    const values2 = tradingData.indicators[indicator2]
-
-    if (values1.length <= index + 1 || values2.length <= index + 1) {
-      return { conditionMet: false, side: 'NONE', conditionSignal: '' }
-    }
-
-    const current1 = values1[values1.length - 1 - index]
-    const current2 = values2[values2.length - 1 - index]
-    const previous1 = values1[values1.length - 1 - index - 1]
-    const previous2 = values2[values2.length - 1 - index - 1]
 
     const crossedAbove = previous1 <= previous2 && current1 > current2
     const crossedBelow = previous1 >= previous2 && current1 < current2
 
-    const met = direction === 'above' ? crossedAbove : crossedBelow
-    const signal = met ? `${indicator1} crossed ${direction} ${indicator2}` : ''
-
-    return { conditionMet: met, side: condition.side, conditionSignal: signal }
-  }
-
-  static evaluatePositionPnLCondition(condition, currentPnLDollars, currentSide) {
-    const threshold = this.getDoubleParameter(condition.parameters, 'threshold', 0.0)
-    const comparison = this.getStringParameter(condition.parameters, 'comparison', '>')
-
-    let met = false
-    switch (comparison) {
-      case '>':
-        met = currentPnLDollars > threshold
-        break
-      case '<':
-        met = currentPnLDollars < threshold
-        break
+    if (direction === 'above' && crossedAbove) {
+      if (condition.side === TradingSides.LONG || condition.side === TradingSides.BOTH) {
+        result.long = true
+      }
+      if (condition.symmetric && (condition.side === TradingSides.SHORT || condition.side === TradingSides.BOTH)) {
+        result.short = false
+      }
+    } else if (direction === 'below' && crossedBelow) {
+      if (condition.side === TradingSides.SHORT || condition.side === TradingSides.BOTH) {
+        result.short = true
+      }
+      if (condition.symmetric && (condition.side === TradingSides.LONG || condition.side === TradingSides.BOTH)) {
+        result.long = false
+      }
     }
 
-    const signal = met ? `P&L: $${currentPnLDollars.toFixed(2)} ${comparison} $${threshold.toFixed(2)}` : ''
-    return { conditionMet: met, side: currentSide, conditionSignal: signal }
+    // Handle symmetric conditions
+    if (condition.symmetric) {
+      if (direction === 'above' && crossedBelow) {
+        result.short = true
+        result.long = false
+      } else if (direction === 'below' && crossedAbove) {
+        result.long = true
+        result.short = false
+      }
+    }
+
+    return result
   }
 
   /**
-   * Gets price array based on price type parameter
+   * Evaluate slope condition
    */
-  static getPriceArray(tradingData, priceType) {
-    switch (priceType.toLowerCase()) {
-      case 'close':
-        return tradingData.close
-      case 'median':
-        return this.calculateMedianPrices(tradingData)
-      case 'typical':
-        return this.calculateTypicalPrices(tradingData)
-      case 'weighted':
-        return this.calculateWeightedPrices(tradingData)
-      default:
-        return tradingData.close
-    }
-  }
+  evaluateSlopeCondition(condition, index) {
+    const { indicator, direction, threshold = 0 } = condition.parameters
+    const result = { long: false, short: false }
 
-  static calculateMedianPrices(tradingData) {
-    const result = []
-    for (let i = 0; i < tradingData.high.length; i++) {
-      result[i] = (tradingData.high[i] + tradingData.low[i]) / 2.0
+    const indicatorValue = this.tradingData.getIndicatorValue(indicator, index)
+    if (indicatorValue === null || indicatorValue === undefined) {
+      return result
     }
+
+    let conditionMet = false
+    if (direction === 'up') {
+      conditionMet = indicatorValue > threshold
+    } else if (direction === 'down') {
+      conditionMet = indicatorValue < threshold
+    }
+
+    if (conditionMet) {
+      if (condition.side === TradingSides.LONG || condition.side === TradingSides.BOTH) {
+        result.long = direction === 'up'
+      }
+      if (condition.side === TradingSides.SHORT || condition.side === TradingSides.BOTH) {
+        result.short = condition.symmetric ? direction === 'down' : (direction === 'down')
+      }
+    }
+
     return result
-  }
-
-  static calculateTypicalPrices(tradingData) {
-    const result = []
-    for (let i = 0; i < tradingData.high.length; i++) {
-      result[i] = (tradingData.high[i] + tradingData.low[i] + tradingData.close[i]) / 3.0
-    }
-    return result
-  }
-
-  static calculateWeightedPrices(tradingData) {
-    const result = []
-    for (let i = 0; i < tradingData.high.length; i++) {
-      result[i] = (tradingData.high[i] + tradingData.low[i] + tradingData.close[i] + tradingData.close[i]) / 4.0
-    }
-    return result
-  }
-
-  // Helper methods for parameter extraction
-  static getIntParameter(parameters, key, defaultValue) {
-    const value = parameters[key]
-    if (value !== undefined) {
-      const parsed = parseInt(value)
-      if (!isNaN(parsed)) return parsed
-    }
-    return defaultValue
-  }
-
-  static getDoubleParameter(parameters, key, defaultValue) {
-    const value = parameters[key]
-    if (value !== undefined) {
-      const parsed = parseFloat(value)
-      if (!isNaN(parsed)) return parsed
-    }
-    return defaultValue
-  }
-
-  static getStringParameter(parameters, key, defaultValue) {
-    const value = parameters[key]
-    return value !== undefined ? String(value) : defaultValue
-  }
-
-  static getBoolParameter(parameters, key, defaultValue) {
-    const value = parameters[key]
-    if (value !== undefined) {
-      if (typeof value === 'boolean') return value
-      const str = String(value).toLowerCase()
-      if (str === 'true') return true
-      if (str === 'false') return false
-    }
-    return defaultValue
   }
 }

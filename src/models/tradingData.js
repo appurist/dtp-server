@@ -1,125 +1,168 @@
 /**
- * Trading Data structure for storing OHLCV data and indicators
- * Based on the C# TradingData implementation
+ * Trading Data Model - JavaScript port of C# TradingData
+ * Stores OHLCV data and calculated indicators for trading algorithms
  */
+
 export class TradingData {
-  constructor(contractId) {
-    this.contractId = contractId
+  constructor(symbol = '') {
+    this.symbol = symbol
     this.timestamps = []
-    this.open = []
-    this.high = []
-    this.low = []
-    this.close = []
-    this.volume = []
-    this.indicators = {}
+    this.opens = []
+    this.highs = []
+    this.lows = []
+    this.closes = []
+    this.volumes = []
+    this.indicators = new Map() // indicator name -> array of values
   }
 
   /**
    * Get the number of data points
    */
   get count() {
-    return this.close.length
+    return this.timestamps.length
   }
 
   /**
-   * Add a new candle to the data
+   * Add a new candle/bar to the data
    */
-  addCandle(timestamp, open, high, low, close, volume) {
-    this.timestamps.push(timestamp)
-    this.open.push(open)
-    this.high.push(high)
-    this.low.push(low)
-    this.close.push(close)
-    this.volume.push(volume)
+  addCandle(timestamp, open, high, low, close, volume = 0) {
+    // Convert timestamp to Unix timestamp if it's a Date object
+    const unixTimestamp = timestamp instanceof Date ? 
+      Math.floor(timestamp.getTime() / 1000) : timestamp
+
+    this.timestamps.push(unixTimestamp)
+    this.opens.push(open)
+    this.highs.push(high)
+    this.lows.push(low)
+    this.closes.push(close)
+    this.volumes.push(volume)
   }
 
   /**
-   * Update the last candle or add a new one
+   * Add multiple candles from array of OHLCV data
    */
-  addOrUpdateCandle(timestamp, open, high, low, close, volume, isNewCandle = true) {
-    if (isNewCandle || this.count === 0) {
-      this.addCandle(timestamp, open, high, low, close, volume)
-    } else {
-      // Update the last candle
-      const lastIndex = this.count - 1
-      this.timestamps[lastIndex] = timestamp
-      this.high[lastIndex] = Math.max(this.high[lastIndex], high)
-      this.low[lastIndex] = Math.min(this.low[lastIndex], low)
-      this.close[lastIndex] = close
-      this.volume[lastIndex] += volume
-    }
+  addCandles(candles) {
+    candles.forEach(candle => {
+      this.addCandle(
+        candle.timestamp || candle.time,
+        candle.open,
+        candle.high,
+        candle.low,
+        candle.close,
+        candle.volume || 0
+      )
+    })
   }
 
   /**
-   * Store indicator values
-   */
-  storeIndicator(name, values) {
-    this.indicators[name] = [...values] // Create a copy
-  }
-
-  /**
-   * Get indicator values by name
-   */
-  getIndicator(name) {
-    return this.indicators[name] || []
-  }
-
-  /**
-   * Get the latest candle data
-   */
-  getLatestCandle() {
-    if (this.count === 0) return null
-    
-    const lastIndex = this.count - 1
-    return {
-      timestamp: this.timestamps[lastIndex],
-      open: this.open[lastIndex],
-      high: this.high[lastIndex],
-      low: this.low[lastIndex],
-      close: this.close[lastIndex],
-      volume: this.volume[lastIndex]
-    }
-  }
-
-  /**
-   * Get candle data for a specific index (0 = oldest, count-1 = newest)
+   * Get candle data at specific index
    */
   getCandle(index) {
-    if (index < 0 || index >= this.count) return null
-    
+    if (index < 0 || index >= this.count) {
+      return null
+    }
+
     return {
       timestamp: this.timestamps[index],
-      open: this.open[index],
-      high: this.high[index],
-      low: this.low[index],
-      close: this.close[index],
-      volume: this.volume[index]
+      open: this.opens[index],
+      high: this.highs[index],
+      low: this.lows[index],
+      close: this.closes[index],
+      volume: this.volumes[index]
     }
   }
 
   /**
-   * Get a slice of the data (for backtesting or analysis)
+   * Get the most recent candle
    */
-  getSlice(startIndex, endIndex) {
-    const slice = new TradingData(this.contractId)
-    
-    for (let i = startIndex; i <= endIndex && i < this.count; i++) {
-      slice.addCandle(
-        this.timestamps[i],
-        this.open[i],
-        this.high[i],
-        this.low[i],
-        this.close[i],
-        this.volume[i]
-      )
+  getLastCandle() {
+    if (this.count === 0) return null
+    return this.getCandle(this.count - 1)
+  }
+
+  /**
+   * Get price data for a specific source (open, high, low, close)
+   */
+  getPriceData(source = 'close') {
+    switch (source.toLowerCase()) {
+      case 'open':
+        return [...this.opens]
+      case 'high':
+        return [...this.highs]
+      case 'low':
+        return [...this.lows]
+      case 'close':
+        return [...this.closes]
+      case 'volume':
+        return [...this.volumes]
+      default:
+        return [...this.closes]
     }
-    
-    // Copy indicators for the slice
-    for (const [name, values] of Object.entries(this.indicators)) {
-      slice.indicators[name] = values.slice(startIndex, endIndex + 1)
+  }
+
+  /**
+   * Get typical price (HLC/3) array
+   */
+  getTypicalPrice() {
+    return this.highs.map((high, i) => 
+      (high + this.lows[i] + this.closes[i]) / 3
+    )
+  }
+
+  /**
+   * Get weighted close price (HLCC/4) array
+   */
+  getWeightedClose() {
+    return this.highs.map((high, i) => 
+      (high + this.lows[i] + this.closes[i] + this.closes[i]) / 4
+    )
+  }
+
+  /**
+   * Set indicator values
+   */
+  setIndicator(name, values) {
+    this.indicators.set(name, [...values])
+  }
+
+  /**
+   * Get indicator values
+   */
+  getIndicator(name) {
+    return this.indicators.get(name) || []
+  }
+
+  /**
+   * Get indicator value at specific index
+   */
+  getIndicatorValue(name, index) {
+    const values = this.getIndicator(name)
+    if (index < 0 || index >= values.length) {
+      return null
     }
-    
-    return slice
+    return values[index]
+  }
+
+  /**
+   * Get the most recent indicator value
+   */
+  getLastIndicatorValue(name) {
+    const values = this.getIndicator(name)
+    return values.length > 0 ? values[values.length - 1] : null
+  }
+
+  /**
+   * Check if indicator exists
+   */
+  hasIndicator(name) {
+    return this.indicators.has(name)
+  }
+
+  /**
+   * Get all indicator names
+   */
+  getIndicatorNames() {
+    return Array.from(this.indicators.keys())
   }
 
   /**
@@ -127,103 +170,93 @@ export class TradingData {
    */
   clear() {
     this.timestamps = []
-    this.open = []
-    this.high = []
-    this.low = []
-    this.close = []
-    this.volume = []
-    this.indicators = {}
+    this.opens = []
+    this.highs = []
+    this.lows = []
+    this.closes = []
+    this.volumes = []
+    this.indicators.clear()
   }
 
   /**
-   * Load historical data from an array of bars
+   * Get data slice from start to end index
    */
-  loadHistoricalData(bars) {
-    this.clear()
+  slice(start, end) {
+    const sliced = new TradingData(this.symbol)
     
-    for (const bar of bars) {
-      this.addCandle(
-        bar.timestamp,
-        bar.open,
-        bar.high,
-        bar.low,
-        bar.close,
-        bar.volume
-      )
+    const startIdx = Math.max(0, start)
+    const endIdx = Math.min(this.count, end || this.count)
+
+    sliced.timestamps = this.timestamps.slice(startIdx, endIdx)
+    sliced.opens = this.opens.slice(startIdx, endIdx)
+    sliced.highs = this.highs.slice(startIdx, endIdx)
+    sliced.lows = this.lows.slice(startIdx, endIdx)
+    sliced.closes = this.closes.slice(startIdx, endIdx)
+    sliced.volumes = this.volumes.slice(startIdx, endIdx)
+
+    // Copy indicators
+    for (const [name, values] of this.indicators) {
+      sliced.setIndicator(name, values.slice(startIdx, endIdx))
     }
+
+    return sliced
   }
 
   /**
-   * Convert to chart data format
+   * Convert to array of candle objects for charting
    */
-  toChartData(timeRangeMinutes = null) {
-    const chartData = []
-    let startIndex = 0
-    
-    if (timeRangeMinutes) {
-      const cutoffTime = new Date(Date.now() - timeRangeMinutes * 60 * 1000)
-      startIndex = this.timestamps.findIndex(ts => new Date(ts) >= cutoffTime)
-      if (startIndex === -1) startIndex = 0
-    }
-    
-    for (let i = startIndex; i < this.count; i++) {
-      const dataPoint = {
-        x: this.timestamps[i],
-        o: this.open[i],
-        h: this.high[i],
-        l: this.low[i],
-        c: this.close[i],
-        v: this.volume[i]
-      }
-      
-      // Add indicators
-      if (Object.keys(this.indicators).length > 0) {
-        dataPoint.indicators = {}
-        for (const [name, values] of Object.entries(this.indicators)) {
-          if (i < values.length && !isNaN(values[i])) {
-            dataPoint.indicators[name] = values[i]
-          }
-        }
-      }
-      
-      chartData.push(dataPoint)
-    }
-    
-    return chartData
+  toChartData() {
+    return this.timestamps.map((timestamp, i) => ({
+      time: timestamp,
+      open: this.opens[i],
+      high: this.highs[i],
+      low: this.lows[i],
+      close: this.closes[i],
+      volume: this.volumes[i]
+    }))
   }
 
   /**
-   * Get summary statistics
+   * Convert to JSON for storage/transmission
    */
-  getSummary() {
-    if (this.count === 0) {
-      return {
-        count: 0,
-        timeRange: null,
-        priceRange: null,
-        indicators: []
-      }
+  toJSON() {
+    const indicators = {}
+    for (const [name, values] of this.indicators) {
+      indicators[name] = values
     }
-    
-    const minPrice = Math.min(...this.low)
-    const maxPrice = Math.max(...this.high)
-    const startTime = this.timestamps[0]
-    const endTime = this.timestamps[this.count - 1]
-    
+
     return {
-      count: this.count,
-      timeRange: {
-        start: startTime,
-        end: endTime,
-        duration: new Date(endTime) - new Date(startTime)
-      },
-      priceRange: {
-        min: minPrice,
-        max: maxPrice,
-        range: maxPrice - minPrice
-      },
-      indicators: Object.keys(this.indicators)
+      symbol: this.symbol,
+      timestamps: this.timestamps,
+      opens: this.opens,
+      highs: this.highs,
+      lows: this.lows,
+      closes: this.closes,
+      volumes: this.volumes,
+      indicators
     }
+  }
+
+  /**
+   * Create from JSON data
+   */
+  static fromJSON(json) {
+    const data = new TradingData(json.symbol)
+    
+    data.timestamps = json.timestamps || []
+    data.opens = json.opens || []
+    data.highs = json.highs || []
+    data.lows = json.lows || []
+    data.closes = json.closes || []
+    data.volumes = json.volumes || []
+
+    if (json.indicators) {
+      for (const [name, values] of Object.entries(json.indicators)) {
+        data.setIndicator(name, values)
+      }
+    }
+
+    return data
   }
 
   /**
@@ -231,83 +264,38 @@ export class TradingData {
    */
   validate() {
     const errors = []
-    
+
+    if (this.count === 0) {
+      errors.push('No data points available')
+      return errors
+    }
+
     // Check array lengths match
     const expectedLength = this.timestamps.length
-    if (this.open.length !== expectedLength) errors.push('Open array length mismatch')
-    if (this.high.length !== expectedLength) errors.push('High array length mismatch')
-    if (this.low.length !== expectedLength) errors.push('Low array length mismatch')
-    if (this.close.length !== expectedLength) errors.push('Close array length mismatch')
-    if (this.volume.length !== expectedLength) errors.push('Volume array length mismatch')
-    
+    if (this.opens.length !== expectedLength) errors.push('Opens array length mismatch')
+    if (this.highs.length !== expectedLength) errors.push('Highs array length mismatch')
+    if (this.lows.length !== expectedLength) errors.push('Lows array length mismatch')
+    if (this.closes.length !== expectedLength) errors.push('Closes array length mismatch')
+    if (this.volumes.length !== expectedLength) errors.push('Volumes array length mismatch')
+
     // Check for valid OHLC relationships
     for (let i = 0; i < this.count; i++) {
-      if (this.high[i] < this.low[i]) {
-        errors.push(`Invalid OHLC at index ${i}: high < low`)
-      }
-      if (this.open[i] > this.high[i] || this.open[i] < this.low[i]) {
-        errors.push(`Invalid OHLC at index ${i}: open outside high/low range`)
-      }
-      if (this.close[i] > this.high[i] || this.close[i] < this.low[i]) {
-        errors.push(`Invalid OHLC at index ${i}: close outside high/low range`)
-      }
-      if (this.volume[i] < 0) {
-        errors.push(`Invalid volume at index ${i}: negative volume`)
-      }
-    }
-    
-    // Check timestamp ordering
-    for (let i = 1; i < this.timestamps.length; i++) {
-      if (new Date(this.timestamps[i]) <= new Date(this.timestamps[i - 1])) {
-        errors.push(`Invalid timestamp ordering at index ${i}`)
-      }
-    }
-    
-    return {
-      isValid: errors.length === 0,
-      errors
-    }
-  }
+      const high = this.highs[i]
+      const low = this.lows[i]
+      const open = this.opens[i]
+      const close = this.closes[i]
 
-  /**
-   * Export data to JSON
-   */
-  toJSON() {
-    return {
-      contractId: this.contractId,
-      count: this.count,
-      data: {
-        timestamps: this.timestamps,
-        open: this.open,
-        high: this.high,
-        low: this.low,
-        close: this.close,
-        volume: this.volume
-      },
-      indicators: this.indicators,
-      summary: this.getSummary()
+      if (high < low) {
+        errors.push(`Invalid OHLC at index ${i}: high (${high}) < low (${low})`)
+      }
+      if (open > high || open < low) {
+        errors.push(`Invalid OHLC at index ${i}: open (${open}) outside high-low range`)
+      }
+      if (close > high || close < low) {
+        errors.push(`Invalid OHLC at index ${i}: close (${close}) outside high-low range`)
+      }
     }
-  }
 
-  /**
-   * Import data from JSON
-   */
-  static fromJSON(json) {
-    const tradingData = new TradingData(json.contractId)
-    
-    if (json.data) {
-      tradingData.timestamps = [...json.data.timestamps]
-      tradingData.open = [...json.data.open]
-      tradingData.high = [...json.data.high]
-      tradingData.low = [...json.data.low]
-      tradingData.close = [...json.data.close]
-      tradingData.volume = [...json.data.volume]
-    }
-    
-    if (json.indicators) {
-      tradingData.indicators = { ...json.indicators }
-    }
-    
-    return tradingData
+    return errors
   }
 }
