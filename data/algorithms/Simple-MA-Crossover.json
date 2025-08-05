@@ -1,0 +1,79 @@
+{
+  "name": "Simple-MA-Crossover",
+  "description": "Simple moving average crossover strategy - buy when fast MA crosses above slow MA, sell when fast MA crosses below slow MA",
+  "version": "1.0",
+  "createdTime": "2024-01-01T00:00:00.000Z",
+  "lastModifiedTime": "2024-01-01T00:00:00.000Z",
+  "favorite": false,
+  "indicators": [
+    {
+      "name": "FastMA",
+      "type": "SMA",
+      "parameters": {
+        "period": 10,
+        "priceType": "close"
+      }
+    },
+    {
+      "name": "SlowMA",
+      "type": "SMA",
+      "parameters": {
+        "period": 20,
+        "priceType": "close"
+      }
+    }
+  ],
+  "entryConditions": [
+    {
+      "type": "crossover",
+      "side": "LONG",
+      "parameters": {
+        "indicator1": "FastMA",
+        "indicator2": "SlowMA",
+        "direction": "above"
+      },
+      "description": "Fast MA crosses above Slow MA for LONG entry"
+    },
+    {
+      "type": "crossover",
+      "side": "SHORT",
+      "parameters": {
+        "indicator1": "FastMA",
+        "indicator2": "SlowMA",
+        "direction": "below"
+      },
+      "description": "Fast MA crosses below Slow MA for SHORT entry"
+    }
+  ],
+  "exitConditions": [
+    {
+      "type": "crossover",
+      "side": "BOTH",
+      "parameters": {
+        "indicator1": "FastMA",
+        "indicator2": "SlowMA",
+        "direction": "below"
+      },
+      "description": "Fast MA crosses below Slow MA - exit LONG"
+    },
+    {
+      "type": "crossover",
+      "side": "BOTH",
+      "parameters": {
+        "indicator1": "FastMA",
+        "indicator2": "SlowMA",
+        "direction": "above"
+      },
+      "description": "Fast MA crosses above Slow MA - exit SHORT"
+    },
+    {
+      "type": "position-pnl",
+      "side": "BOTH",
+      "parameters": {
+        "threshold": -100,
+        "comparison": "<"
+      },
+      "description": "Stop loss at -$100"
+    }
+  ]
+}

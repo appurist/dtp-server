@@ -1,0 +1,87 @@
+{
+  "name": "RSI-Mean-Reversion",
+  "description": "RSI-based mean reversion strategy - buy when RSI is oversold (below 30), sell when RSI is overbought (above 70)",
+  "version": "1.0",
+  "createdTime": "2024-01-01T00:00:00.000Z",
+  "lastModifiedTime": "2024-01-01T00:00:00.000Z",
+  "favorite": false,
+  "indicators": [
+    {
+      "name": "RSI14",
+      "type": "RSI",
+      "parameters": {
+        "period": 14
+      }
+    },
+    {
+      "name": "SMA20",
+      "type": "SMA",
+      "parameters": {
+        "period": 20,
+        "priceType": "close"
+      }
+    }
+  ],
+  "entryConditions": [
+    {
+      "type": "threshold",
+      "side": "LONG",
+      "parameters": {
+        "indicator": "RSI14",
+        "threshold": 30,
+        "comparison": "<"
+      },
+      "description": "RSI below 30 (oversold) for LONG entry"
+    },
+    {
+      "type": "threshold",
+      "side": "SHORT",
+      "parameters": {
+        "indicator": "RSI14",
+        "threshold": 70,
+        "comparison": ">"
+      },
+      "description": "RSI above 70 (overbought) for SHORT entry"
+    }
+  ],
+  "exitConditions": [
+    {
+      "type": "threshold",
+      "side": "BOTH",
+      "parameters": {
+        "indicator": "RSI14",
+        "threshold": 50,
+        "comparison": ">"
+      },
+      "description": "RSI above 50 - exit LONG position"
+    },
+    {
+      "type": "threshold",
+      "side": "BOTH",
+      "parameters": {
+        "indicator": "RSI14",
+        "threshold": 50,
+        "comparison": "<"
+      },
+      "description": "RSI below 50 - exit SHORT position"
+    },
+    {
+      "type": "position-pnl",
+      "side": "BOTH",
+      "parameters": {
+        "threshold": -75,
+        "comparison": "<"
+      },
+      "description": "Stop loss at -$75"
+    },
+    {
+      "type": "position-pnl",
+      "side": "BOTH",
+      "parameters": {
+        "threshold": 150,
+        "comparison": ">"
+      },
+      "description": "Take profit at +$150"
+    }
+  ]
+}
