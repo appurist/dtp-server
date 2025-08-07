@@ -212,7 +212,67 @@ Search for trading contracts.
 }
 ```
 
+#### POST /api/trading/subscribe-market-data
+Subscribe to real-time market data for a contract.
 
+**Request Body:**
+```json
+{
+  "contractId": "CON.F.US.ES.U25"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Subscribed to market data for contract CON.F.US.ES.U25"
+}
+```
+
+#### POST /api/trading/unsubscribe-market-data
+Unsubscribe from real-time market data for a contract.
+
+**Request Body:**
+```json
+{
+  "contractId": "CON.F.US.ES.U25"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Unsubscribed from market data for contract CON.F.US.ES.U25"
+}
+```
+
+#### GET /api/trading/historical-data?contractId={id}&timeframe={tf}&startDate={start}&endDate={end}
+Get historical bars data for a contract.
+
+**Query Parameters:**
+- `contractId`: Contract ID to get data for
+- `timeframe`: Timeframe (e.g., '1m', '5m', '1h', '1d')
+- `startDate`: Start date (ISO 8601 format)
+- `endDate`: End date (ISO 8601 format)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "timestamp": "2024-08-02T09:30:00.000Z",
+      "open": 18500.00,
+      "high": 18525.00,
+      "low": 18495.00,
+      "close": 18520.00,
+      "volume": 1250
+    }
+  ]
+}
+```
 
 #### GET /api/trading/status
 Get overall trading engine status.
