@@ -1,0 +1,16 @@
+{
+  "instances": [
+    {
+      "id": "48068c42-3765-4814-bb36-ed89ed20cd85",
+      "name": "Test",
+      "symbol": "NQU5",
+      "contractId": "",
+      "accountId": 8523025,
+      "algorithmName": "Slope-Momentum",
+      "simulationMode": false,
+      "startingCapital": 10000,
+      "commission": 2.8
+    }
+  ],
+  "lastSaved": "2025-08-06T06:35:42.100Z"
+}

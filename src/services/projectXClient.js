@@ -125,7 +125,7 @@ export class ProjectXClient extends EventEmitter {
     const response = await fetch(`${this.baseURL}${endpoint}`, config)
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`)
+      throw new Error(`API request to ${endpoint} failed: ${response.status} ${response.statusText}`)
     }
 
     return response.json()
@@ -136,18 +136,27 @@ export class ProjectXClient extends EventEmitter {
    * @param {boolean} onlyActiveAccounts - Filter to only active accounts (default: true)
    */
   async getAccounts(onlyActiveAccounts = true) {
-    const url = `/api/Account/search?onlyActiveAccounts=${onlyActiveAccounts}`
-    return this.makeRequest(url, {
-      method: 'POST'
+    return this.makeRequest('/api/Account/search', {
+      method: 'POST',
+      body: {
+        onlyActiveAccounts
+      }
     })
   }
 
   /**
    * Search contracts
+   * @param {string} searchText - The name of the contract to search for
+   * @param {boolean} live - Whether to search for contracts using the sim/live data subscription (default: false)
    */
-  async searchContracts(query = '') {
-    const params = new URLSearchParams({ query })
-    return this.makeRequest(`/contracts?${params}`)
+  async searchContracts(searchText = '', live = false) {
+    return this.makeRequest('/api/Contract/search', {
+      method: 'POST',
+      body: {
+        searchText,
+        live
+      }
+    })
   }
 
   /**

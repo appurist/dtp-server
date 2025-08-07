@@ -11,7 +11,7 @@ import { projectXClient } from '../services/projectXClient.js'
 export class TradingInstance extends EventEmitter {
   constructor(config) {
     super()
-    
+
     // Basic properties
     this.id = config.id || uuidv4()
     this.name = config.name || ''
@@ -19,17 +19,17 @@ export class TradingInstance extends EventEmitter {
     this.contractId = config.contractId || ''
     this.accountId = config.accountId || ''
     this.algorithmName = config.algorithmName || ''
-    
+
     // Status and lifecycle
     this.status = 'STOPPED' // RUNNING, STOPPED, PAUSED
     this.simulationMode = config.simulationMode !== undefined ? config.simulationMode : true
     this.startTime = null
     this.stopTime = null
-    
+
     // Trading configuration
     this.startingCapital = config.startingCapital || 10000
     this.commission = config.commission || 2.80
-    
+
     // Position tracking
     this.currentPosition = {
       side: 'NONE', // LONG, SHORT, NONE
@@ -37,28 +37,28 @@ export class TradingInstance extends EventEmitter {
       entryPrice: 0,
       entryTime: null
     }
-    
+
     // P&L tracking
     this.totalPnL = 0
     this.totalTrades = 0
     this.winningTrades = 0
     this.losingTrades = 0
     this.trades = []
-    
+
     // Data and algorithm
     this.tradingData = new TradingData(this.contractId)
     this.algorithm = null
     this.lastSignalTime = null
     this.lastDecisionFeedback = ''
-    
+
     // Market data subscription
     this.marketDataCallback = null
     this.isSubscribedToMarketData = false
-    
+
     // Logging
     this.logs = []
     this.maxLogs = 1000
-    
+
     // Tick configuration for P&L calculations
     this.setSymbolTickConfiguration(this.symbol)
   }
@@ -81,7 +81,7 @@ export class TradingInstance extends EventEmitter {
       'GC': { tickSize: 0.10, tickValue: 10.0 },
       'SI': { tickSize: 0.005, tickValue: 25.0 }
     }
-    
+
     const config = tickConfigs[symbol.toUpperCase()] || { tickSize: 0.25, tickValue: 5.0 }
     this.tickSize = config.tickSize
     this.tickValue = config.tickValue
@@ -126,13 +126,13 @@ export class TradingInstance extends EventEmitter {
       }
 
       this.log('Starting trading instance...')
-      
+
       // Reset state
       this.status = 'RUNNING'
       this.startTime = new Date()
       this.stopTime = null
       this.lastSignalTime = null
-      
+
       // Reset position if in simulation mode
       if (this.simulationMode) {
         this.currentPosition = {
@@ -154,7 +154,7 @@ export class TradingInstance extends EventEmitter {
 
       this.log(`Instance ${this.name} started successfully`)
       this.emit('statusChanged', { instanceId: this.id, status: this.status })
-      
+
       return true
     } catch (error) {
       this.log(`Error starting instance: ${error.message}`)
@@ -173,16 +173,16 @@ export class TradingInstance extends EventEmitter {
       }
 
       this.log('Stopping trading instance...')
-      
+
       // Unsubscribe from market data
       await this.unsubscribeFromMarketData()
-      
+
       this.status = 'STOPPED'
       this.stopTime = new Date()
-      
+
       this.log(`Instance ${this.name} stopped`)
       this.emit('statusChanged', { instanceId: this.id, status: this.status })
-      
+
       return true
     } catch (error) {
       this.log(`Error stopping instance: ${error.message}`)
@@ -201,7 +201,7 @@ export class TradingInstance extends EventEmitter {
     this.status = 'PAUSED'
     this.log(`Instance ${this.name} paused`)
     this.emit('statusChanged', { instanceId: this.id, status: this.status })
-    
+
     return true
   }
 
@@ -216,7 +216,7 @@ export class TradingInstance extends EventEmitter {
     this.status = 'RUNNING'
     this.log(`Instance ${this.name} resumed`)
     this.emit('statusChanged', { instanceId: this.id, status: this.status })
-    
+
     return true
   }
 
@@ -228,7 +228,7 @@ export class TradingInstance extends EventEmitter {
       // Calculate date range (last 5 trading days)
       const endDate = new Date()
       const startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000) // 7 days ago
-      
+
       const historicalData = await projectXClient.getHistoricalData(
         this.contractId,
         '1m', // 1-minute timeframe
@@ -239,10 +239,10 @@ export class TradingInstance extends EventEmitter {
       if (historicalData && historicalData.length > 0) {
         // Sort by timestamp to ensure chronological order
         historicalData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-        
+
         // Load into trading data
         this.tradingData.loadHistoricalData(historicalData)
-        
+
         this.log(`Loaded ${historicalData.length} historical candles`)
         return true
       } else {
@@ -270,7 +270,7 @@ export class TradingInstance extends EventEmitter {
 
       await projectXClient.subscribeToMarketData(this.contractId, this.marketDataCallback)
       this.isSubscribedToMarketData = true
-      
+
       this.log('Subscribed to market data')
       return true
     } catch (error) {
@@ -291,7 +291,7 @@ export class TradingInstance extends EventEmitter {
       await projectXClient.unsubscribeFromMarketData(this.contractId, this.marketDataCallback)
       this.isSubscribedToMarketData = false
       this.marketDataCallback = null
-      
+
       this.log('Unsubscribed from market data')
       return true
     } catch (error) {
@@ -310,14 +310,14 @@ export class TradingInstance extends EventEmitter {
 
     try {
       const { contractId, trades } = data
-      
+
       if (contractId !== this.contractId || !trades || trades.length === 0) {
         return
       }
 
       // Process trades and update candle data
       const tradeTime = new Date(trades[0].timestamp)
-      const currentMinute = new Date(tradeTime.getFullYear(), tradeTime.getMonth(), tradeTime.getDate(), 
+      const currentMinute = new Date(tradeTime.getFullYear(), tradeTime.getMonth(), tradeTime.getDate(),
                                    tradeTime.getHours(), tradeTime.getMinutes(), 0)
 
       // Calculate OHLCV from trades
@@ -408,7 +408,7 @@ export class TradingInstance extends EventEmitter {
 
     this.lastSignalTime = timestamp
     const message = `${this.simulationMode ? 'SIMULATED ' : ''}${side} ENTRY @ ${price.toFixed(2)} - ${signal}`
-    
+
     this.log(message)
     this.emit('signal', {
       instanceId: this.id,
@@ -450,7 +450,7 @@ export class TradingInstance extends EventEmitter {
     this.trades.push(trade)
     this.totalTrades++
     this.totalPnL += pnL
-    
+
     if (pnL > 0) {
       this.winningTrades++
     } else {
@@ -458,7 +458,7 @@ export class TradingInstance extends EventEmitter {
     }
 
     const message = `${this.simulationMode ? 'SIMULATED ' : ''}${this.currentPosition.side} EXIT @ ${price.toFixed(2)} - ${signal}, P&L: $${pnL.toFixed(2)}`
-    
+
     this.log(message)
     this.emit('signal', {
       instanceId: this.id,
@@ -494,7 +494,7 @@ export class TradingInstance extends EventEmitter {
       return 0
     }
 
-    const pointDifference = this.currentPosition.side === 'LONG' 
+    const pointDifference = this.currentPosition.side === 'LONG'
       ? (currentPrice - this.currentPosition.entryPrice)
       : (this.currentPosition.entryPrice - currentPrice)
 
@@ -531,7 +531,7 @@ export class TradingInstance extends EventEmitter {
       }
 
       const result = await projectXClient.placeOrder(orderData)
-      
+
       if (result.success) {
         this.log(`Order placed: ${side} ${quantity} contracts - ${reason}`)
       } else {
@@ -548,9 +548,9 @@ export class TradingInstance extends EventEmitter {
   log(message) {
     const timestamp = new Date().toISOString()
     const logEntry = `[${timestamp}] ${message}`
-    
+
     this.logs.unshift(logEntry)
-    
+
     // Keep only the most recent logs
     if (this.logs.length > this.maxLogs) {
       this.logs = this.logs.slice(0, this.maxLogs)
@@ -564,9 +564,20 @@ export class TradingInstance extends EventEmitter {
    * Get current state for UI
    */
   getState() {
-    const latestCandle = this.tradingData.getLatestCandle()
-    const unrealizedPnL = latestCandle ? this.calculateUnrealizedPnL(latestCandle.close) : 0
-    
+    // Safely get latest candle - only needed for running instances
+    let latestCandle = null
+    let unrealizedPnL = 0
+
+    try {
+      if (this.tradingData && typeof this.tradingData.getLatestCandle === 'function') {
+        latestCandle = this.tradingData.getLatestCandle()
+        unrealizedPnL = latestCandle ? this.calculateUnrealizedPnL(latestCandle.close) : 0
+      }
+    } catch (error) {
+      // Ignore errors when getting candle data for stopped/new instances
+      console.warn(`[${this.name}] Warning getting latest candle:`, error.message)
+    }
+
     return {
       id: this.id,
       name: this.name,
@@ -579,23 +590,23 @@ export class TradingInstance extends EventEmitter {
       startTime: this.startTime,
       stopTime: this.stopTime,
       runningTime: this.status === 'RUNNING' && this.startTime ? Date.now() - this.startTime.getTime() : 0,
-      
+
       // Position info
       currentPosition: { ...this.currentPosition },
       unrealizedPnL,
-      
+
       // Trading stats
       totalPnL: this.totalPnL,
       totalTrades: this.totalTrades,
       winningTrades: this.winningTrades,
       losingTrades: this.losingTrades,
       winRate: this.totalTrades > 0 ? (this.winningTrades / this.totalTrades * 100) : 0,
-      
+
       // Data info
-      candleCount: this.tradingData.count,
+      candleCount: this.tradingData ? this.tradingData.count : 0,
       lastSignalTime: this.lastSignalTime,
       lastDecisionFeedback: this.lastDecisionFeedback,
-      
+
       // Current price
       currentPrice: latestCandle ? latestCandle.close : 0,
       lastUpdate: latestCandle ? latestCandle.timestamp : null

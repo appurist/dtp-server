@@ -27,7 +27,7 @@ export class TradingData {
    */
   addCandle(timestamp, open, high, low, close, volume = 0) {
     // Convert timestamp to Unix timestamp if it's a Date object
-    const unixTimestamp = timestamp instanceof Date ? 
+    const unixTimestamp = timestamp instanceof Date ?
       Math.floor(timestamp.getTime() / 1000) : timestamp
 
     this.timestamps.push(unixTimestamp)
@@ -52,6 +52,23 @@ export class TradingData {
         candle.volume || 0
       )
     })
+  }
+
+  /**
+   * Add or update a candle (if isNewCandle is false, updates the last candle)
+   */
+  addOrUpdateCandle(timestamp, open, high, low, close, volume = 0, isNewCandle = true) {
+    if (isNewCandle || this.count === 0) {
+      // Add new candle
+      this.addCandle(timestamp, open, high, low, close, volume)
+    } else {
+      // Update the last candle
+      const lastIndex = this.count - 1
+      this.highs[lastIndex] = Math.max(this.highs[lastIndex], high)
+      this.lows[lastIndex] = Math.min(this.lows[lastIndex], low)
+      this.closes[lastIndex] = close
+      this.volumes[lastIndex] += volume
+    }
   }
 
   /**
@@ -81,6 +98,13 @@ export class TradingData {
   }
 
   /**
+   * Get the most recent candle (alias for getLastCandle)
+   */
+  getLatestCandle() {
+    return this.getLastCandle()
+  }
+
+  /**
    * Get price data for a specific source (open, high, low, close)
    */
   getPriceData(source = 'close') {
@@ -104,7 +128,7 @@ export class TradingData {
    * Get typical price (HLC/3) array
    */
   getTypicalPrice() {
-    return this.highs.map((high, i) => 
+    return this.highs.map((high, i) =>
       (high + this.lows[i] + this.closes[i]) / 3
     )
   }
@@ -113,7 +137,7 @@ export class TradingData {
    * Get weighted close price (HLCC/4) array
    */
   getWeightedClose() {
-    return this.highs.map((high, i) => 
+    return this.highs.map((high, i) =>
       (high + this.lows[i] + this.closes[i] + this.closes[i]) / 4
     )
   }
@@ -183,7 +207,7 @@ export class TradingData {
    */
   slice(start, end) {
     const sliced = new TradingData(this.symbol)
-    
+
     const startIdx = Math.max(0, start)
     const endIdx = Math.min(this.count, end || this.count)
 
@@ -242,7 +266,7 @@ export class TradingData {
    */
   static fromJSON(json) {
     const data = new TradingData(json.symbol)
-    
+
     data.timestamps = json.timestamps || []
     data.opens = json.opens || []
     data.highs = json.highs || []

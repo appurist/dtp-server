@@ -76,8 +76,6 @@ router.get('/accounts', async (req, res) => {
 
     const response = await tradingInstanceManager.getAccounts(onlyActiveAccounts);
 
-    // ProjectX API already returns { success: true, accounts: [...] }
-    // So we can return it directly without double-wrapping
     res.json(response);
   } catch (error) {
     console.error('Error getting accounts:', error);
@@ -89,18 +87,19 @@ router.get('/accounts', async (req, res) => {
 });
 
 /**
- * GET /api/trading/contracts
+ * GET /api/trading/contracts?query={searchText}&live={boolean}
  * Search contracts
  */
 router.get('/contracts', async (req, res) => {
   try {
-    const query = req.query.query || '';
-    const contracts = await tradingInstanceManager.searchContracts(query);
+    const searchText = req.query.query || '';
+    const live = req.query.live === 'true'; // Parse boolean from query string
 
-    res.json({
-      success: true,
-      contracts
-    });
+    const response = await tradingInstanceManager.searchContracts(searchText, live);
+
+    // ProjectX API returns { contracts: [...], success: true, ... }
+    // Return it directly to avoid double-wrapping
+    res.json(response);
   } catch (error) {
     console.error('Error searching contracts:', error);
     res.status(500).json({

@@ -3,6 +3,7 @@ import { TradingInstance } from '../models/tradingInstance.js'
 import { projectXClient } from './projectXClient.js'
 import fs from 'fs/promises'
 import path from 'path'
+import { homedir } from 'os'
 
 /**
  * Trading Instance Manager
@@ -20,7 +21,7 @@ export class TradingInstanceManager extends EventEmitter {
     // Configuration
     this.dataPath = process.env.DATA_PATH || './data'
     this.instancesFile = path.join(this.dataPath, 'instances.json')
-    this.algorithmsPath = path.join(this.dataPath, 'algorithms')
+    this.algorithmsPath = this.getAlgorithmsPath()
     this.connectionFile = path.join(this.dataPath, 'connection.json')
     this.connectionConfig = null
 
@@ -30,6 +31,19 @@ export class TradingInstanceManager extends EventEmitter {
 
     // Initialize
     this.initialize()
+  }
+
+  /**
+   * Get algorithms path (same logic as algorithms.js route)
+   */
+  getAlgorithmsPath() {
+    // First try Desktop path (like original .NET version)
+    const desktopPath = path.join(homedir(), 'Desktop', 'DayTradersPro', 'algorithms')
+
+    // Fall back to environment variable or local data folder
+    const fallbackPath = process.env.ALGORITHMS_PATH || './data/algorithms'
+
+    return desktopPath
   }
 
   /**
@@ -156,7 +170,18 @@ export class TradingInstanceManager extends EventEmitter {
    */
   async loadAlgorithms() {
     try {
+      console.log(`[TradingInstanceManager] Looking for algorithms at: ${this.algorithmsPath}`)
+
+      // Check if directory exists, create if it doesn't
+      try {
+        await fs.access(this.algorithmsPath)
+      } catch (error) {
+        console.log(`[TradingInstanceManager] Directory doesn't exist, creating: ${this.algorithmsPath}`)
+        await fs.mkdir(this.algorithmsPath, { recursive: true })
+      }
+
       const files = await fs.readdir(this.algorithmsPath)
+      console.log(`[TradingInstanceManager] Found ${files.length} files: ${files.join(', ')}`)
       const algorithmFiles = files.filter(file => file.endsWith('.json'))
 
       for (const file of algorithmFiles) {
@@ -231,18 +256,21 @@ export class TradingInstanceManager extends EventEmitter {
   }
 
   /**
-   * Update all instance states
+   * Update runtime states (only for RUNNING instances)
    */
   updateInstanceStates() {
     if (this.isDisposed) return
 
     for (const [instanceId, instance] of this.instances) {
-      try {
-        const state = instance.getState()
-        this.instanceStates.set(instanceId, state)
-        this.emit('instanceStateChanged', { instanceId, state })
-      } catch (error) {
-        console.error(`[TradingInstanceManager] Error updating state for ${instanceId}:`, error.message)
+      // Only update state for running instances - stopped instances don't have runtime state
+      if (instance.status === 'RUNNING') {
+        try {
+          const state = instance.getState()
+          this.instanceStates.set(instanceId, state)
+          this.emit('instanceStateChanged', { instanceId, state })
+        } catch (error) {
+          console.error(`[TradingInstanceManager] Error updating state for running instance ${instanceId}:`, error.message)
+        }
       }
     }
   }
@@ -254,7 +282,9 @@ export class TradingInstanceManager extends EventEmitter {
     try {
       // Validate algorithm exists
       if (config.algorithmName && !this.algorithms.has(config.algorithmName)) {
-        throw new Error(`Algorithm '${config.algorithmName}' not found`)
+        const availableAlgorithms = Array.from(this.algorithms.keys())
+        console.error(`[TradingInstanceManager] Algorithm '${config.algorithmName}' not found. Available algorithms:`, availableAlgorithms)
+        throw new Error(`Algorithm '${config.algorithmName}' not found. Available: ${availableAlgorithms.join(', ')}`)
       }
 
       // Create instance
@@ -271,7 +301,7 @@ export class TradingInstanceManager extends EventEmitter {
 
       // Add to collections
       this.instances.set(instance.id, instance)
-      this.instanceStates.set(instance.id, instance.getState())
+      // Only set state for running instances - new instances don't have runtime state yet
 
       // Save to disk if requested
       if (save) {
@@ -503,10 +533,12 @@ export class TradingInstanceManager extends EventEmitter {
 
   /**
    * Search contracts
+   * @param {string} searchText - The name of the contract to search for
+   * @param {boolean} live - Whether to search for contracts using the sim/live data subscription (default: false)
    */
-  async searchContracts(query) {
+  async searchContracts(searchText, live = false) {
     try {
-      return await projectXClient.searchContracts(query)
+      return await projectXClient.searchContracts(searchText, live)
     } catch (error) {
       console.error('[TradingInstanceManager] Error searching contracts:', error.message)
       throw error
