@@ -53,11 +53,22 @@ if (HOST !== REQUIRED_HOST && HOST !== 'localhost') {
 app.use(helmet());
 app.use(compression());
 
-// Rate limiting
+// Rate limiting (more permissive in development)
+const maxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || (process.env.NODE_ENV === 'development' ? 1000 : 100);
+const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || (15 * 60 * 1000);
+
+console.log(`Rate limiting: ${maxRequests} requests per ${windowMs/1000/60} minutes`);
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  windowMs,
+  max: maxRequests,
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  skip: (req) => req.url === '/health', // Skip rate limiting for health checks
+  onLimitReached: (req) => {
+    console.warn(`Rate limit exceeded for ${req.ip} on ${req.url}`);
+  }
 });
 app.use('/api/', limiter);
 
