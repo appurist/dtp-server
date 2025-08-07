@@ -123,6 +123,10 @@ tradingInstanceManager.on('instanceStateChanged', (data) => {
   io.emit('instanceStateChanged', data);
 });
 
+tradingInstanceManager.on('instanceStatusChanged', (data) => {
+  io.emit('instanceStateChanged', data);
+});
+
 tradingInstanceManager.on('instanceSignal', (data) => {
   io.emit('instanceSignal', data);
 });

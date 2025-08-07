@@ -153,7 +153,7 @@ class WebSocketService {
     })
 
     this.socket.on('instanceCreated', (data) => {
-      console.log(`[WebSocket] Instance created: ${data.instanceId}`)
+      console.log(`[WebSocket] Instance created: ${data.id || data.instanceId}`)
       this.emit('instanceCreated', data)
     })
 

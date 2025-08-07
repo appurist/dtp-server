@@ -309,7 +309,7 @@ export class TradingInstanceManager extends EventEmitter {
       }
 
       console.log(`[TradingInstanceManager] Created instance: ${instance.name} (${instance.id})`)
-      this.emit('instanceCreated', { instanceId: instance.id, instance })
+      this.emit('instanceCreated', instance.getState())
 
       return instance
     } catch (error) {
