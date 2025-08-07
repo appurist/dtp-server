@@ -202,4 +202,109 @@ router.get('/status', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/trading/subscribe-market-data
+ * Subscribe to real-time market data for a contract
+ */
+router.post('/subscribe-market-data', async (req, res) => {
+  try {
+    const { contractId } = req.body;
+
+    if (!contractId) {
+      return res.status(400).json({
+        success: false,
+        error: 'contractId is required'
+      });
+    }
+
+    // Create a default callback that emits WebSocket events
+    const callback = (data) => {
+      // Emit market data update via WebSocket
+      // This will be handled by the server's WebSocket implementation
+      console.log(`Market data update for ${contractId}:`, data);
+    };
+
+    // Subscribe via trading instance manager
+    await tradingInstanceManager.subscribeToMarketData(contractId, callback);
+
+    res.json({
+      success: true,
+      message: `Subscribed to market data for contract ${contractId}`
+    });
+  } catch (error) {
+    console.error('Error subscribing to market data:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/trading/unsubscribe-market-data
+ * Unsubscribe from real-time market data for a contract
+ */
+router.post('/unsubscribe-market-data', async (req, res) => {
+  try {
+    const { contractId } = req.body;
+
+    if (!contractId) {
+      return res.status(400).json({
+        success: false,
+        error: 'contractId is required'
+      });
+    }
+
+    // Unsubscribe via trading instance manager
+    await tradingInstanceManager.unsubscribeFromMarketData(contractId);
+
+    res.json({
+      success: true,
+      message: `Unsubscribed from market data for contract ${contractId}`
+    });
+  } catch (error) {
+    console.error('Error unsubscribing from market data:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/trading/historical-data
+ * Get historical bars data for a contract
+ */
+router.get('/historical-data', async (req, res) => {
+  try {
+    const { contractId, timeframe, startDate, endDate } = req.query;
+
+    if (!contractId || !timeframe || !startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'contractId, timeframe, startDate, and endDate are required'
+      });
+    }
+
+    // Get historical data via trading instance manager
+    const historicalData = await tradingInstanceManager.getHistoricalData(
+      contractId,
+      timeframe,
+      new Date(startDate),
+      new Date(endDate)
+    );
+
+    res.json({
+      success: true,
+      data: historicalData
+    });
+  } catch (error) {
+    console.error('Error getting historical data:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

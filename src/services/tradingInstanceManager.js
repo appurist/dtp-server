@@ -640,6 +640,61 @@ export class TradingInstanceManager extends EventEmitter {
 
     console.log('[TradingInstanceManager] Disposed')
   }
+
+  /**
+   * Subscribe to market data for a contract
+   * @param {string} contractId - Contract ID to subscribe to
+   * @param {function} callback - Optional callback function (for WebSocket API compatibility)
+   */
+  async subscribeToMarketData(contractId, callback = null) {
+    try {
+      return await projectXClient.subscribeToMarketData(contractId, callback)
+    } catch (error) {
+      console.error('[TradingInstanceManager] Error subscribing to market data:', error.message)
+      throw error
+    }
+  }
+
+  /**
+   * Unsubscribe from market data for a contract
+   * @param {string} contractId - Contract ID to unsubscribe from
+   * @param {function} callback - Optional callback to remove (if not provided, removes all)
+   */
+  async unsubscribeFromMarketData(contractId, callback = null) {
+    try {
+      if (callback) {
+        return await projectXClient.unsubscribeFromMarketData(contractId, callback)
+      } else {
+        // If no callback provided, unsubscribe all callbacks for this contract
+        const callbacks = projectXClient.marketSubscriptions.get(contractId)
+        if (callbacks) {
+          for (const cb of callbacks) {
+            await projectXClient.unsubscribeFromMarketData(contractId, cb)
+          }
+        }
+        return true
+      }
+    } catch (error) {
+      console.error('[TradingInstanceManager] Error unsubscribing from market data:', error.message)
+      throw error
+    }
+  }
+
+  /**
+   * Get historical data for a contract
+   * @param {string} contractId - Contract ID
+   * @param {string} timeframe - Timeframe (e.g., '1m', '5m', '1h')
+   * @param {Date} startDate - Start date
+   * @param {Date} endDate - End date
+   */
+  async getHistoricalData(contractId, timeframe, startDate, endDate) {
+    try {
+      return await projectXClient.getHistoricalData(contractId, timeframe, startDate, endDate)
+    } catch (error) {
+      console.error('[TradingInstanceManager] Error getting historical data:', error.message)
+      throw error
+    }
+  }
 }
 
 // Singleton instance
