@@ -75,9 +75,11 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Logging
+// Logging (skip health checks to reduce noise)
 if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan('combined'));
+  app.use(morgan('combined', {
+    skip: (req, res) => req.url === '/health'
+  }));
 }
 
 // Ensure data directories exist
