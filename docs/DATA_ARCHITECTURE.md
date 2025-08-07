@@ -24,7 +24,12 @@ DayTradersPro uses a **server-centric data architecture** where all persistent d
 
 ## Server-Side Data Storage
 
-### Location: `dtp/server/data/`
+### Location: Configurable Data Directory
+
+**Default Paths:**
+- **Development:** `./data` (relative to server directory)
+- **Production:** `~/Desktop/DayTradersPro` (user's desktop)
+- **Configurable:** Via `DATA_PATH` environment variable
 
 | File/Directory | Purpose | Content | Management |
 |---|---|---|---|
@@ -100,8 +105,10 @@ DayTradersPro uses a **server-centric data architecture** where all persistent d
 
 ### Server Configuration
 - `GET /api/trading/connection` - Get server configuration (without sensitive data)
-- `POST /api/trading/connection` - Update server configuration
-- `POST /api/trading/credentials` - Set Project X credentials
+- `GET /api/trading/server-status` - Get comprehensive server status including Project X connection
+- `POST /api/trading/test-connection` - Test Project X API connection
+
+**Note:** Project X credentials are managed server-side via `connection.json` file. No API endpoints expose or modify credentials for security reasons.
 
 ### UI Data
 - `GET /api/data/ui-config` - Get UI configuration
@@ -171,15 +178,17 @@ Simply copy the entire `dtp/server/data/` directory to preserve all configuratio
 ## Development vs Production
 
 ### Development
-- Port: 3587 (dedicated)
-- Data path: `./data` (relative to server)
-- CORS: Allows localhost origins
-- Logging: Verbose console output
+- **Port:** 3587 (dedicated, enforced)
+- **Data path:** `./data` (relative to server directory)
+- **CORS:** Allows localhost origins (`http://localhost:5173`, `http://localhost:5174`)
+- **Logging:** Console output + file logging
+- **Rate limiting:** 1000 requests per 15 minutes
 
 ### Production
-- Port: 3587 (same dedicated port)
-- Data path: Configurable via environment
-- CORS: Restricted to specific origins
-- Logging: File-based with rotation
+- **Port:** 3587 (same dedicated port, no override allowed)
+- **Data path:** `~/Desktop/DayTradersPro` or configurable via `DATA_PATH` environment variable
+- **CORS:** Restricted to configured origins
+- **Logging:** File-based with rotation in `data/logs/`
+- **Rate limiting:** 100 requests per 15 minutes
 
 This architecture ensures **zero configuration** for clients while maintaining **complete server autonomy** and **persistent trading operations**.

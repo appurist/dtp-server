@@ -38,8 +38,12 @@ The DayTradersPro Vue.js client is designed as a **stateless UI** that communica
 ### REST API
 - `GET /health` - Server status and capabilities
 - `GET /api/trading/connection` - Client configuration
+- `GET /api/trading/server-status` - Comprehensive server status
 - `GET /api/instances` - Trading instances
 - `POST /api/instances` - Create trading instance
+- `POST /api/trading/subscribe-market-data` - Subscribe to real-time market data
+- `POST /api/trading/unsubscribe-market-data` - Unsubscribe from market data
+- `GET /api/trading/historical-data` - Get historical bars data
 - All other operations via server API
 
 ### WebSocket (Socket.IO)
