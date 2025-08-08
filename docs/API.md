@@ -909,28 +909,90 @@ Delete a backtest definition.
 }
 ```
 
+#### POST /api/backtests/{id}/run
+Start executing a backtest from a saved definition.
+
+**Request Body:**
+```json
+{
+  "startingCapital": 10000,
+  "commission": 0
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "backtestId": "execution_uuid",
+  "message": "Backtest started"
+}
+```
+
+#### GET /api/backtests/{id}/status
+Get the current status of a running backtest.
+
+**Response:**
+```json
+{
+  "success": true,
+  "backtest": {
+    "id": "execution_uuid",
+    "name": "MQ SMA Strategy",
+    "status": "RUNNING",
+    "progress": 45.2,
+    "startedAt": "2025-08-08T10:00:00.000Z",
+    "completedAt": null,
+    "error": null,
+    "results": null,
+    "logs": [
+      "Starting backtest",
+      "Loaded 1440 data points",
+      "Processing... 45.2%"
+    ]
+  }
+}
+```
+
+#### POST /api/backtests/{id}/stop
+Stop a running backtest.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Backtest stopped"
+}
+```
+
 #### Backtest Architecture
 
-**Storage Requirements:**
-- Server stores backtest **definitions only** in `data/backtests/` directory
+**Definition Storage:**
+- Server stores backtest **definitions** in `data/backtests/` directory
 - Each definition is saved as a JSON file with UUID filename
 - Definitions include metadata (id, name, description, timestamps) and parameters (symbol, algorithm, date range, lag ticks)
-- **No execution data** (trades, logs, results, status, progress) is stored server-side
 
-**Client-Side Architecture:**
-1. **Backtest Definitions** are loaded from server on app startup
-2. **Backtest Runs** are created client-side by:
-   - Selecting a definition
-   - Creating a `BacktestInstance` (run) from the definition
-   - Executing the backtest locally
-   - Storing run results in client memory/localStorage (temporary)
-3. **Reusable Definitions** can be run multiple times with different parameters or time periods
+**Execution Architecture:**
+1. **Backtest Definitions** are managed server-side via REST API
+2. **Backtest Execution** happens server-side:
+   - Client calls `POST /api/backtests/{id}/run` to start execution
+   - Server automatically fetches historical data from Project X if missing
+   - Server runs backtest using BacktestingService
+   - Real-time progress updates sent via WebSocket (`backtestUpdate` events)
+   - Results available via `GET /api/backtests/{id}/status`
+3. **Historical Data Management**:
+   - Server automatically fetches missing data from Project X API
+   - Data cached locally in `data/historical/` for future use
+   - 1-minute candle resolution used for backtests
+
+**WebSocket Events:**
+- `backtestUpdate`: Real-time status, progress, and result updates during execution
 
 This approach provides:
-- **Clean separation** between configuration and execution
-- **Flexible client-side execution** with temporary result storage
-- **Persistent configuration** server-side while allowing flexible client-side execution
-- **Scalable architecture** where server manages definitions, client handles execution
+- **Server-side execution** with automatic data fetching
+- **Real-time progress tracking** via WebSocket
+- **Automatic data caching** for improved performance
+- **Scalable architecture** where server handles both definitions and execution
 
 ### Historical Data Management
 
