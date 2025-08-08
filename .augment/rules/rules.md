@@ -2,7 +2,9 @@
 type: "always_apply"
 ---
 
-Never, ever, start a response with "Perfect!", or "You're absolutely right!" or equivalent. Those are meaningless prefixes compared to the sentence that follows.
+Never, start a response with "Perfect!", or "You're absolutely right!" or equivalent. Those are meaningless prefixes compared to the sentence that follows.
+
+Don't run applications; ask me to do it instead.
 
 Always ask for a confirmation before implementing any solution that uses DependencyInjection via a Service.
 
