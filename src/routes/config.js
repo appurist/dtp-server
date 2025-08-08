@@ -6,8 +6,12 @@ import { homedir } from 'os';
 const router = express.Router();
 
 const getDataPath = () => {
-  // Use Desktop path like original .NET version
-  return path.join(homedir(), 'Desktop', 'DayTradersPro');
+  // Use DATA_PATH environment variable with Desktop fallback
+  let dataPath = process.env.DATA_PATH || path.join(homedir(), 'Desktop', 'DayTradersPro');
+  if (dataPath.startsWith('~/')) {
+    dataPath = path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
+  }
+  return dataPath;
 };
 
 const getConfigPath = () => {

@@ -9,8 +9,11 @@ import { EventEmitter } from 'events'
 export class ProjectXClient extends EventEmitter {
   constructor() {
     super()
-    this.baseURL = process.env.PROJECTX_API_URL || 'https://api.topstepx.com'
-    this.websocketURL = process.env.PROJECTX_WS_URL || 'wss://rtc.topstepx.com'
+
+    // ProjectX URLs are constants - no need for environment variables
+    this.baseURL = 'https://api.topstepx.com'
+    this.marketHubURL = 'https://rtc.topstepx.com/hubs/market'
+    this.userHubURL = 'https://rtc.topstepx.com/hubs/user'
     this.token = null
     this.tokenExpiry = null
     this.marketConnection = null
@@ -191,6 +194,23 @@ export class ProjectXClient extends EventEmitter {
   }
 
   /**
+   * Sanitize error messages to remove sensitive tokens
+   */
+  sanitizeError(error) {
+    if (typeof error === 'string') {
+      // Replace access_token parameter with sanitized version
+      return error.replace(/access_token=[^&\s]+/g, 'access_token=(token)')
+    }
+    if (error && error.message) {
+      return {
+        ...error,
+        message: error.message.replace(/access_token=[^&\s]+/g, 'access_token=(token)')
+      }
+    }
+    return error
+  }
+
+  /**
    * Connect to market data WebSocket
    */
   async connectMarketData() {
@@ -201,7 +221,7 @@ export class ProjectXClient extends EventEmitter {
     const token = await this.getValidToken()
 
     this.marketConnection = new HubConnectionBuilder()
-      .withUrl(`${this.websocketURL}/hubs/market?access_token=${token}`, {
+      .withUrl(`${this.marketHubURL}?access_token=${token}`, {
         skipNegotiation: true,
         transport: 1 // WebSockets only
       })
@@ -231,12 +251,20 @@ export class ProjectXClient extends EventEmitter {
       this.emit('marketReconnected')
     })
 
-    this.marketConnection.onclose(() => {
+    this.marketConnection.onclose((error) => {
+      if (error) {
+        console.error('[ProjectX] Market connection closed with error:', this.sanitizeError(error))
+      }
       this.emit('marketDisconnected')
     })
 
-    await this.marketConnection.start()
-    this.emit('marketConnected')
+    try {
+      await this.marketConnection.start()
+      this.emit('marketConnected')
+    } catch (error) {
+      console.error('[ProjectX] Failed to connect to market data:', this.sanitizeError(error))
+      throw new Error('Failed to connect to market data WebSocket')
+    }
   }
 
   /**
@@ -253,8 +281,15 @@ export class ProjectXClient extends EventEmitter {
     }
     this.marketSubscriptions.get(contractId).add(callback)
 
-    // Subscribe via SignalR
-    await this.marketConnection.invoke('SubscribeToContract', contractId)
+    // Subscribe via SignalR using correct ProjectX API methods
+    try {
+      await this.marketConnection.invoke('SubscribeContractQuotes', contractId)
+      await this.marketConnection.invoke('SubscribeContractTrades', contractId)
+      console.log(`[ProjectX] Successfully subscribed to market data for contract: ${contractId}`)
+    } catch (error) {
+      console.error(`[ProjectX] Failed to subscribe to market data:`, this.sanitizeError(error))
+      throw error
+    }
   }
 
   /**
@@ -267,7 +302,13 @@ export class ProjectXClient extends EventEmitter {
       if (callbacks.size === 0) {
         this.marketSubscriptions.delete(contractId)
         if (this.marketConnection) {
-          await this.marketConnection.invoke('UnsubscribeFromContract', contractId)
+          try {
+            await this.marketConnection.invoke('UnsubscribeContractQuotes', contractId)
+            await this.marketConnection.invoke('UnsubscribeContractTrades', contractId)
+            console.log(`[ProjectX] Successfully unsubscribed from market data for contract: ${contractId}`)
+          } catch (error) {
+            console.error(`[ProjectX] Failed to unsubscribe from market data:`, this.sanitizeError(error))
+          }
         }
       }
     }
@@ -284,7 +325,7 @@ export class ProjectXClient extends EventEmitter {
     const token = await this.getValidToken()
 
     this.userConnection = new HubConnectionBuilder()
-      .withUrl(`${this.websocketURL}/hubs/user?access_token=${token}`, {
+      .withUrl(`${this.userHubURL}?access_token=${token}`, {
         skipNegotiation: true,
         transport: 1 // WebSockets only
       })
@@ -306,8 +347,20 @@ export class ProjectXClient extends EventEmitter {
       this.emit('orderUpdate', { accountId, order })
     })
 
-    await this.userConnection.start()
-    this.emit('userDataConnected')
+    this.userConnection.onclose((error) => {
+      if (error) {
+        console.error('[ProjectX] User connection closed with error:', this.sanitizeError(error))
+      }
+      this.emit('userDataDisconnected')
+    })
+
+    try {
+      await this.userConnection.start()
+      this.emit('userDataConnected')
+    } catch (error) {
+      console.error('[ProjectX] Failed to connect to user data:', this.sanitizeError(error))
+      throw new Error('Failed to connect to user data WebSocket')
+    }
   }
 
   /**
@@ -324,8 +377,17 @@ export class ProjectXClient extends EventEmitter {
     }
     this.positionSubscriptions.get(accountId).add(callback)
 
-    // Subscribe via SignalR
-    await this.userConnection.invoke('SubscribeToAccount', accountId)
+    // Subscribe via SignalR using correct ProjectX API methods
+    try {
+      await this.userConnection.invoke('SubscribeAccounts')
+      await this.userConnection.invoke('SubscribeOrders', accountId)
+      await this.userConnection.invoke('SubscribePositions', accountId)
+      await this.userConnection.invoke('SubscribeTrades', accountId)
+      console.log(`[ProjectX] Successfully subscribed to user data for account: ${accountId}`)
+    } catch (error) {
+      console.error(`[ProjectX] Failed to subscribe to user data:`, this.sanitizeError(error))
+      throw error
+    }
   }
 
   /**

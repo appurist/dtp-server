@@ -135,8 +135,6 @@ export class TradingInstanceManager extends EventEmitter {
       // Set default configuration
       this.connectionConfig = {
         projectX: {
-          apiUrl: 'https://api.topstepx.com',
-          websocketUrl: 'wss://rtc.topstepx.com',
           autoConnect: false
         },
         server: {
@@ -265,14 +263,45 @@ export class TradingInstanceManager extends EventEmitter {
       // Only update state for running instances - stopped instances don't have runtime state
       if (instance.status === 'RUNNING') {
         try {
-          const state = instance.getState()
-          this.instanceStates.set(instanceId, state)
-          this.emit('instanceStateChanged', { instanceId, state })
+          const newState = instance.getState()
+          const previousState = this.instanceStates.get(instanceId)
+
+          // Only emit event if state has actually changed
+          if (!previousState || this.hasStateChanged(previousState, newState)) {
+            this.instanceStates.set(instanceId, newState)
+            this.emit('instanceStateChanged', { instanceId, state: newState })
+          }
         } catch (error) {
           console.error(`[TradingInstanceManager] Error updating state for running instance ${instanceId}:`, error.message)
         }
       }
     }
+  }
+
+  /**
+   * Check if instance state has meaningfully changed
+   */
+  hasStateChanged(oldState, newState) {
+    // Compare key fields that matter for UI updates
+    const significantFields = [
+      'status', 'totalPnL', 'unrealizedPnL', 'totalTrades',
+      'winningTrades', 'losingTrades', 'currentPrice', 'candleCount'
+    ]
+
+    for (const field of significantFields) {
+      if (oldState[field] !== newState[field]) {
+        return true
+      }
+    }
+
+    // Check position changes
+    if (oldState.currentPosition?.side !== newState.currentPosition?.side ||
+        oldState.currentPosition?.quantity !== newState.currentPosition?.quantity ||
+        oldState.currentPosition?.entryPrice !== newState.currentPosition?.entryPrice) {
+      return true
+    }
+
+    return false
   }
 
   /**
@@ -378,6 +407,11 @@ export class TradingInstanceManager extends EventEmitter {
 
     const success = await instance.start()
     if (success) {
+      // Update state and emit change event immediately
+      const state = instance.getState()
+      this.instanceStates.set(instanceId, state)
+      this.emit('instanceStateChanged', { instanceId, state })
+
       await this.saveInstances()
     }
 
@@ -395,6 +429,11 @@ export class TradingInstanceManager extends EventEmitter {
 
     const success = await instance.stop()
     if (success) {
+      // Remove from runtime states when stopped and emit change event
+      this.instanceStates.delete(instanceId)
+      const state = instance.getState()
+      this.emit('instanceStateChanged', { instanceId, state })
+
       await this.saveInstances()
     }
 

@@ -7,10 +7,7 @@ export const useConnectionStore = defineStore('connection', () => {
   // State - just credential storage
   const credentials = ref({
     username: '',
-    apiKey: '',
-    apiEndpoint: 'https://api.topstepx.com',
-    signalRMarketHub: 'wss://rtc.topstepx.com/hubs/market',
-    signalRUserHub: 'wss://rtc.topstepx.com/hubs/user'
+    apiKey: ''
   })
 
   const lastError = ref(null)
@@ -34,10 +31,7 @@ export const useConnectionStore = defineStore('connection', () => {
     // No client-side initialization needed
     credentials.value = {
       username: '',
-      apiKey: '',
-      apiEndpoint: 'https://api.topstepx.com',
-      signalRMarketHub: 'wss://rtc.topstepx.com/hubs/market',
-      signalRUserHub: 'wss://rtc.topstepx.com/hubs/user'
+      apiKey: ''
     }
   }
 

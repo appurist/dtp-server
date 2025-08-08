@@ -92,10 +92,10 @@ router.get('/ui-config', async (req, res) => {
 router.post('/ui-config', async (req, res) => {
   try {
     const config = req.body;
-    
+
     // Add timestamp
     config.lastUpdated = new Date().toISOString();
-    
+
     await writeJsonFile(UI_CONFIG_FILE, config);
 
     res.json({
@@ -120,7 +120,7 @@ router.get('/user-settings', async (req, res) => {
     const settings = await readJsonFile(USER_SETTINGS_FILE, {
       projectX: {
         apiUrl: 'https://api.topstepx.com',
-        websocketUrl: 'wss://rtc.topstepx.com',
+        websocketUrl: 'https://rtc.topstepx.com',
         username: '',
         // Note: password is not stored in file for security
         rememberCredentials: false
@@ -163,15 +163,15 @@ router.get('/user-settings', async (req, res) => {
 router.post('/user-settings', async (req, res) => {
   try {
     const settings = req.body;
-    
+
     // Add timestamp
     settings.lastUpdated = new Date().toISOString();
-    
+
     // Remove sensitive data before saving
     if (settings.projectX && settings.projectX.password) {
       delete settings.projectX.password;
     }
-    
+
     await writeJsonFile(USER_SETTINGS_FILE, settings);
 
     res.json({
@@ -221,7 +221,7 @@ router.get('/watchlists', async (req, res) => {
 router.post('/watchlists', async (req, res) => {
   try {
     const watchlists = req.body;
-    
+
     // Add timestamps to new watchlists
     Object.values(watchlists).forEach(watchlist => {
       if (!watchlist.created) {
@@ -229,7 +229,7 @@ router.post('/watchlists', async (req, res) => {
       }
       watchlist.lastUpdated = new Date().toISOString();
     });
-    
+
     await writeJsonFile(WATCHLISTS_FILE, watchlists);
 
     res.json({
@@ -286,7 +286,7 @@ router.get('/export', async (req, res) => {
 router.post('/import', async (req, res) => {
   try {
     const importData = req.body;
-    
+
     if (!importData.data) {
       return res.status(400).json({
         success: false,
@@ -336,9 +336,9 @@ router.post('/import', async (req, res) => {
 router.delete('/reset', async (req, res) => {
   try {
     const filesToRemove = [UI_CONFIG_FILE, USER_SETTINGS_FILE, WATCHLISTS_FILE];
-    
+
     await Promise.all(
-      filesToRemove.map(file => 
+      filesToRemove.map(file =>
         fs.unlink(file).catch(error => {
           if (error.code !== 'ENOENT') {
             throw error;

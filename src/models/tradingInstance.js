@@ -149,8 +149,12 @@ export class TradingInstance extends EventEmitter {
         await this.loadHistoricalData()
       }
 
-      // Subscribe to market data
-      await this.subscribeToMarketData()
+      // Subscribe to market data - this must succeed for the instance to start
+      const subscribed = await this.subscribeToMarketData()
+      if (!subscribed) {
+        this.status = 'STOPPED'
+        throw new Error('Failed to subscribe to market data - instance cannot start')
+      }
 
       this.log(`Instance ${this.name} started successfully`)
       this.emit('statusChanged', { instanceId: this.id, status: this.status })
