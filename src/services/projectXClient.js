@@ -3,14 +3,14 @@ import fetch from 'node-fetch'
 import { EventEmitter } from 'events'
 
 /**
- * Server-side Project X API Client
+ * Server-side Provider API Client
  * Handles authentication, market data, and trading operations
  */
 export class ProjectXClient extends EventEmitter {
   constructor() {
     super()
 
-    // ProjectX URLs are constants - no need for environment variables
+    // Provider API URLs are constants - no need for environment variables
     this.baseURL = 'https://api.topstepx.com'
     this.marketHubURL = 'https://rtc.topstepx.com/hubs/market'
     this.userHubURL = 'https://rtc.topstepx.com/hubs/user'
@@ -34,7 +34,7 @@ export class ProjectXClient extends EventEmitter {
   }
 
   /**
-   * Authenticate with Project X API
+   * Authenticate with Provider API
    */
   async authenticate() {
     if (this.authenticationPromise) {

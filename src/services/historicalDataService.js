@@ -13,11 +13,11 @@ class HistoricalDataService {
    * Get the historical data storage path
    */
   getHistoricalDataPath() {
-    let dataPath = process.env.HISTORICAL_DATA_PATH || './data/historical';
+    let dataPath = process.env.DATA_PATH || './data';
     if (dataPath.startsWith('~/')) {
       dataPath = path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
     }
-    return dataPath;
+    return path.join(dataPath, 'historical');
   }
 
   /**
@@ -35,7 +35,7 @@ class HistoricalDataService {
     try {
       const fileName = this.generateDataFileName(symbol, date);
       const filePath = path.join(this.dataPath, fileName);
-      
+
       const stats = await fs.stat(filePath);
       return stats.isFile() && stats.size > 0;
     } catch (error) {
@@ -49,29 +49,29 @@ class HistoricalDataService {
   async loadHistoricalData(symbol, startDate, endDate) {
     const data = [];
     const currentDate = new Date(startDate);
-    
+
     while (currentDate <= endDate) {
       try {
         const fileName = this.generateDataFileName(symbol, currentDate);
         const filePath = path.join(this.dataPath, fileName);
-        
+
         const fileContent = await fs.readFile(filePath, 'utf8');
         const dayData = JSON.parse(fileContent);
-        
+
         if (Array.isArray(dayData)) {
           data.push(...dayData);
         }
       } catch (error) {
         console.log(`No data found for ${symbol} on ${currentDate.toISOString().split('T')[0]}`);
       }
-      
+
       // Move to next day
       currentDate.setDate(currentDate.getDate() + 1);
     }
-    
+
     // Sort by timestamp
     data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    
+
     return data;
   }
 
@@ -82,19 +82,19 @@ class HistoricalDataService {
     try {
       // Ensure directory exists
       await fs.mkdir(this.dataPath, { recursive: true });
-      
+
       const fileName = this.generateDataFileName(symbol, date);
       const filePath = path.join(this.dataPath, fileName);
-      
+
       // Sort data by timestamp before saving
-      const sortedData = Array.isArray(data) ? 
-        data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) : 
+      const sortedData = Array.isArray(data) ?
+        data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) :
         data;
-      
+
       await fs.writeFile(filePath, JSON.stringify(sortedData, null, 2));
-      
+
       console.log(`Saved ${Array.isArray(sortedData) ? sortedData.length : 1} records for ${symbol} on ${date.toISOString().split('T')[0]}`);
-      
+
       return true;
     } catch (error) {
       console.error(`Error saving historical data for ${symbol}:`, error);
@@ -108,15 +108,15 @@ class HistoricalDataService {
   async getAvailableDataDates(symbol) {
     try {
       const files = await fs.readdir(this.dataPath);
-      const symbolFiles = files.filter(file => 
+      const symbolFiles = files.filter(file =>
         file.startsWith(`${symbol}-`) && file.endsWith('.json')
       );
-      
+
       const dates = symbolFiles.map(file => {
         const dateStr = file.replace(`${symbol}-`, '').replace('.json', '');
         return new Date(dateStr);
       }).sort((a, b) => a - b);
-      
+
       return dates;
     } catch (error) {
       console.error(`Error getting available dates for ${symbol}:`, error);
@@ -131,7 +131,7 @@ class HistoricalDataService {
     try {
       const fileName = this.generateDataFileName(symbol, date);
       const filePath = path.join(this.dataPath, fileName);
-      
+
       await fs.unlink(filePath);
       return true;
     } catch (error) {
@@ -152,24 +152,24 @@ class HistoricalDataService {
         symbols: new Set(),
         dateRange: { start: null, end: null }
       };
-      
+
       for (const file of files) {
         if (file.endsWith('.json')) {
           const filePath = path.join(this.dataPath, file);
           const fileStat = await fs.stat(filePath);
-          
+
           stats.totalFiles++;
           stats.totalSize += fileStat.size;
-          
+
           // Extract symbol and date
           const parts = file.replace('.json', '').split('-');
           if (parts.length >= 4) { // symbol-YYYY-MM-DD
             const symbol = parts[0];
             const dateStr = parts.slice(1).join('-');
             const date = new Date(dateStr);
-            
+
             stats.symbols.add(symbol);
-            
+
             if (!stats.dateRange.start || date < stats.dateRange.start) {
               stats.dateRange.start = date;
             }
@@ -179,7 +179,7 @@ class HistoricalDataService {
           }
         }
       }
-      
+
       return {
         ...stats,
         symbols: Array.from(stats.symbols)

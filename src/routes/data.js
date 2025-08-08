@@ -118,11 +118,9 @@ router.post('/ui-config', async (req, res) => {
 router.get('/user-settings', async (req, res) => {
   try {
     const settings = await readJsonFile(USER_SETTINGS_FILE, {
-      projectX: {
-        apiUrl: 'https://api.topstepx.com',
-        websocketUrl: 'https://rtc.topstepx.com',
-        username: '',
-        // Note: password is not stored in file for security
+      provider: {
+        userid: '',
+        // Note: apikey is not stored in file for security
         rememberCredentials: false
       },
       trading: {

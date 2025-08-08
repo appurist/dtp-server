@@ -105,10 +105,12 @@ const ensureDirectories = async () => {
     return path;
   };
 
+  const dataPath = expandPath(process.env.DATA_PATH || './data');
   const dirs = [
-    expandPath(process.env.DATA_PATH || './data'),
-    expandPath(process.env.ALGORITHMS_PATH || './data/algorithms'),
-    expandPath(process.env.HISTORICAL_DATA_PATH || './data/historical')
+    dataPath,
+    path.join(dataPath, 'algorithms'),
+    path.join(dataPath, 'historical'),
+    path.join(dataPath, 'logs')
   ];
 
   for (const dir of dirs) {

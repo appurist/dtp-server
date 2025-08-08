@@ -1,23 +1,11 @@
 {
-  "projectX": {
-    "apiUrl": "https://api.topstepx.com",
-    "websocketUrl": "wss://rtc.topstepx.com",
-    "username": "myusername",
-    "apiKey": "SUPER_SECRET_API_KEY",
+  "provider": {
+    "userid": "myusername",
+    "apikey": "SUPER_SECRET_API_KEY",
     "autoConnect": false,
     "connectionTimeout": 10000,
     "reconnectAttempts": 5,
     "reconnectDelay": 1000
-  },
-  "server": {
-    "port": 3587,
-    "host": "127.0.0.1",
-    "corsOrigins": [
-      "http://localhost:5173",
-      "http://localhost:5174"
-    ],
-    "dataPath": "./data",
-    "logLevel": "info"
   },
   "trading": {
     "defaultCommission": 2.80,

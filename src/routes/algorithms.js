@@ -6,13 +6,11 @@ import { homedir } from 'os';
 const router = express.Router();
 
 const getAlgorithmsPath = () => {
-  // First try Desktop path (like original .NET version)
-  const desktopPath = path.join(homedir(), 'Desktop', 'DayTradersPro', 'algorithms');
-
-  // Fall back to environment variable or local data folder
-  const fallbackPath = process.env.ALGORITHMS_PATH || './data/algorithms';
-
-  return desktopPath;
+  let dataPath = process.env.DATA_PATH || './data';
+  if (dataPath.startsWith('~/')) {
+    dataPath = path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
+  }
+  return path.join(dataPath, 'algorithms');
 };
 
 /**

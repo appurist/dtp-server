@@ -3,7 +3,6 @@ import { TradingInstance } from '../models/tradingInstance.js'
 import { projectXClient } from './projectXClient.js'
 import fs from 'fs/promises'
 import path from 'path'
-import { homedir } from 'os'
 
 /**
  * Trading Instance Manager
@@ -34,16 +33,14 @@ export class TradingInstanceManager extends EventEmitter {
   }
 
   /**
-   * Get algorithms path (same logic as algorithms.js route)
+   * Get algorithms path (subfolder of DATA_PATH)
    */
   getAlgorithmsPath() {
-    // First try Desktop path (like original .NET version)
-    const desktopPath = path.join(homedir(), 'Desktop', 'DayTradersPro', 'algorithms')
-
-    // Fall back to environment variable or local data folder
-    const fallbackPath = process.env.ALGORITHMS_PATH || './data/algorithms'
-
-    return desktopPath
+    let dataPath = process.env.DATA_PATH || './data';
+    if (dataPath.startsWith('~/')) {
+      dataPath = path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
+    }
+    return path.join(dataPath, 'algorithms');
   }
 
   /**
@@ -100,28 +97,27 @@ export class TradingInstanceManager extends EventEmitter {
       const content = await fs.readFile(this.connectionFile, 'utf8')
       this.connectionConfig = JSON.parse(content)
 
-      // Set Project X credentials if available
-      if (this.connectionConfig.projectX?.username && this.connectionConfig.projectX?.apiKey) {
+      // Set provider credentials if available
+      if (this.connectionConfig.provider?.userid && this.connectionConfig.provider?.apikey) {
         projectXClient.setCredentials(
-          this.connectionConfig.projectX.username,
-          this.connectionConfig.projectX.apiKey
+          this.connectionConfig.provider.userid,
+          this.connectionConfig.provider.apikey
         )
 
         // Auto-connect if enabled
-        if (this.connectionConfig.projectX.autoConnect) {
+        if (this.connectionConfig.provider.autoConnect) {
           try {
             await projectXClient.authenticate()
-            console.log('[TradingInstanceManager] ✅ Auto-connected to Project X successfully')
+            console.log('[TradingInstanceManager] ✅ Auto-connected to provider successfully')
           } catch (error) {
-            console.warn('[TradingInstanceManager] ⚠️  Auto-connect to Project X failed:', error.message)
-            console.warn('[TradingInstanceManager] ⚠️  API URL:', this.connectionConfig.projectX.apiUrl)
-            console.warn('[TradingInstanceManager] ⚠️  Username:', this.connectionConfig.projectX.username ? '***' : '(empty)')
+            console.warn('[TradingInstanceManager] ⚠️  Auto-connect to provider failed:', error.message)
+            console.warn('[TradingInstanceManager] ⚠️  User ID:', this.connectionConfig.provider.userid ? '***' : '(empty)')
             console.warn('[TradingInstanceManager] Server will continue in simulation mode')
             console.warn('[TradingInstanceManager] Update credentials in connection.json for live trading')
           }
         }
       } else {
-        console.log('[TradingInstanceManager] No Project X credentials configured - running in simulation mode')
+        console.log('[TradingInstanceManager] No provider credentials configured - running in simulation mode')
       }
 
       console.log('[TradingInstanceManager] Connection configuration loaded')
@@ -134,13 +130,13 @@ export class TradingInstanceManager extends EventEmitter {
 
       // Set default configuration
       this.connectionConfig = {
-        projectX: {
+        provider: {
           autoConnect: false
         },
         server: {
           port: 3587,
           host: '127.0.0.1',
-          corsOrigins: ['http://localhost:5173', 'http://localhost:5174']
+          corsOrigin: 'http://localhost:5173'
         },
         trading: {
           defaultCommission: 2.80,
@@ -616,8 +612,8 @@ export class TradingInstanceManager extends EventEmitter {
         port: this.connectionConfig?.server?.port || 3587,
         host: this.connectionConfig?.server?.host || '127.0.0.1'
       },
-      projectX: {
-        configured: !!(this.connectionConfig?.projectX?.username && this.connectionConfig?.projectX?.apiKey),
+      provider: {
+        configured: !!(this.connectionConfig?.provider?.userid && this.connectionConfig?.provider?.apikey),
         connected: false,
         authenticated: false,
         lastError: null
@@ -629,19 +625,19 @@ export class TradingInstanceManager extends EventEmitter {
       }
     }
 
-    // Check Project X connection status
-    if (status.projectX.configured) {
+    // Check provider connection status
+    if (status.provider.configured) {
       try {
         // Test if we can get a valid token
         const token = await projectXClient.getValidToken()
         if (token) {
-          status.projectX.authenticated = true
-          status.projectX.connected = true
+          status.provider.authenticated = true
+          status.provider.connected = true
         }
       } catch (error) {
-        status.projectX.lastError = error.message
-        status.projectX.authenticated = false
-        status.projectX.connected = false
+        status.provider.lastError = error.message
+        status.provider.authenticated = false
+        status.provider.connected = false
       }
     }
 
