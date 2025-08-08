@@ -2,7 +2,7 @@
 
 ## Overview
 
-The DayTradersPro server provides a comprehensive trading engine with algorithm execution, Project X API integration, and real-time data streaming. The server handles all trading operations independently and communicates with the Vue.js Electron client via REST API and WebSocket connections.
+The DayTradersPro server provides a comprehensive trading engine with algorithm execution, Project X API integration, and real-time data streaming. The server handles all trading operations independently and communicates with the Vue.js Electron client via REST API and WebSocket connections. For WebSocket API documentation, see [WEBSOCKET_API.md](WEBSOCKET_API.md).
 
 ## Base URL
 
@@ -12,18 +12,7 @@ http://127.0.0.1:3587
 
 **Note**: Server binds to `127.0.0.1` (localhost only) for security. Remote connections are not allowed.
 
-## WebSocket Connection
 
-```
-ws://127.0.0.1:3587/socket.io/
-```
-
-The server uses Socket.IO for real-time communication with the client. Events are automatically pushed to connected clients for:
-- Instance state changes
-- Trading signals
-- Log messages
-- Market data updates
-- Instance creation/deletion
 
 ## Dedicated Port Architecture
 
@@ -62,6 +51,7 @@ The server provides the following API route groups:
 - `/api/instances` - Trading instance management
 - `/api/trading` - Trading engine and Project X integration
 - `/api/data` - Data management (UI config, user settings, watchlists)
+- `/api/backtests` - Backtest definition management
 - `/api/algorithms` - Algorithm definitions
 - `/api/config` - Application configuration
 - `/api/historical` - Historical data management
@@ -792,6 +782,156 @@ Reset configuration to defaults.
 }
 ```
 
+### Backtest Definition Management
+
+#### GET /api/backtests
+Get all saved backtest definitions.
+
+**Response:**
+```json
+{
+  "success": true,
+  "backtests": [
+    {
+      "id": "backtest_def_uuid",
+      "name": "MQ SMA Strategy",
+      "description": "10/20 SMA crossover on MQ futures",
+      "symbol": "MQ",
+      "algorithmName": "SMA Crossover",
+      "startDate": "2025-07-27",
+      "endDate": "2025-08-02",
+      "lagTicks": 1,
+      "createdAt": "2025-08-08T10:00:00.000Z",
+      "lastModifiedAt": "2025-08-08T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### POST /api/backtests
+Create and save a new backtest definition.
+
+**Request Body:**
+```json
+{
+  "name": "MQ SMA Strategy",
+  "description": "10/20 SMA crossover on MQ futures",
+  "symbol": "MQ",
+  "algorithmName": "SMA Crossover",
+  "startDate": "2025-07-27",
+  "endDate": "2025-08-02",
+  "lagTicks": 1
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "backtest": {
+    "id": "backtest_def_uuid",
+    "name": "MQ SMA Strategy",
+    "description": "10/20 SMA crossover on MQ futures",
+    "symbol": "MQ",
+    "algorithmName": "SMA Crossover",
+    "startDate": "2025-07-27",
+    "endDate": "2025-08-02",
+    "lagTicks": 1,
+    "createdAt": "2025-08-08T10:00:00.000Z",
+    "lastModifiedAt": "2025-08-08T10:00:00.000Z"
+  }
+}
+```
+
+#### GET /api/backtests/{id}
+Get a specific backtest definition.
+
+**Response:**
+```json
+{
+  "success": true,
+  "backtest": {
+    "id": "backtest_def_uuid",
+    "name": "MQ SMA Strategy",
+    "description": "10/20 SMA crossover on MQ futures",
+    "symbol": "MQ",
+    "algorithmName": "SMA Crossover",
+    "startDate": "2025-07-27",
+    "endDate": "2025-08-02",
+    "lagTicks": 1,
+    "createdAt": "2025-08-08T10:00:00.000Z",
+    "lastModifiedAt": "2025-08-08T10:00:00.000Z"
+  }
+}
+```
+
+#### PUT /api/backtests/{id}
+Update a backtest definition.
+
+**Request Body:**
+```json
+{
+  "name": "Updated MQ SMA Strategy",
+  "description": "Modified 10/20 SMA crossover strategy",
+  "startDate": "2025-07-20",
+  "endDate": "2025-08-05",
+  "lagTicks": 2
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "backtest": {
+    "id": "backtest_def_uuid",
+    "name": "Updated MQ SMA Strategy",
+    "description": "Modified 10/20 SMA crossover strategy",
+    "symbol": "MQ",
+    "algorithmName": "SMA Crossover",
+    "startDate": "2025-07-20",
+    "endDate": "2025-08-05",
+    "lagTicks": 2,
+    "createdAt": "2025-08-08T10:00:00.000Z",
+    "lastModifiedAt": "2025-08-08T12:30:00.000Z"
+  }
+}
+```
+
+#### DELETE /api/backtests/{id}
+Delete a backtest definition.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Backtest definition deleted successfully"
+}
+```
+
+#### Backtest Architecture
+
+**Storage Requirements:**
+- Server stores backtest **definitions only** in `data/backtests/` directory
+- Each definition is saved as a JSON file with UUID filename
+- Definitions include metadata (id, name, description, timestamps) and parameters (symbol, algorithm, date range, lag ticks)
+- **No execution data** (trades, logs, results, status, progress) is stored server-side
+
+**Client-Side Architecture:**
+1. **Backtest Definitions** are loaded from server on app startup
+2. **Backtest Runs** are created client-side by:
+   - Selecting a definition
+   - Creating a `BacktestInstance` (run) from the definition
+   - Executing the backtest locally
+   - Storing run results in client memory/localStorage (temporary)
+3. **Reusable Definitions** can be run multiple times with different parameters or time periods
+
+This approach provides:
+- **Clean separation** between configuration and execution
+- **Flexible client-side execution** with temporary result storage
+- **Persistent configuration** server-side while allowing flexible client-side execution
+- **Scalable architecture** where server manages definitions, client handles execution
+
 ### Historical Data Management
 
 #### GET /api/historical/stats
@@ -964,62 +1104,7 @@ Clean up old log files.
 
 
 
-## WebSocket Events
 
-### Client → Server Events
-
-- `connect`: Establish connection
-- `disconnect`: Close connection
-
-### Server → Client Events
-
-- `instanceStates`: Initial state of all instances (sent on connect)
-- `instanceStateChanged`: Instance state update
-- `instanceSignal`: Trading signal generated
-- `instanceLog`: New log message
-- `instanceDataUpdate`: Market data update
-- `instanceCreated`: New instance created
-- `instanceDeleted`: Instance deleted
-
-### Event Data Formats
-
-#### instanceStateChanged
-```json
-{
-  "instanceId": "uuid-1234",
-  "state": { /* complete instance state object */ }
-}
-```
-
-#### instanceSignal
-```json
-{
-  "instanceId": "uuid-1234",
-  "type": "ENTRY",
-  "side": "LONG",
-  "price": 18500.25,
-  "timestamp": "2024-08-02T10:15:00.000Z",
-  "signal": "LONG ENTRY @ 18500.25 - FastMA crossed above SlowMA",
-  "pnL": 125.50,
-  "trade": { /* trade object for EXIT signals */ }
-}
-```
-
-#### instanceDataUpdate
-```json
-{
-  "instanceId": "uuid-1234",
-  "candle": {
-    "timestamp": "2024-08-02T10:30:00.000Z",
-    "open": 18520.00,
-    "high": 18525.00,
-    "low": 18515.00,
-    "close": 18522.50,
-    "volume": 150
-  },
-  "isNewCandle": true
-}
-```
 
 ## Error Responses
 
@@ -1129,8 +1214,9 @@ If you see this error:
 
 1. **No Proxy**: All Project X API communications originate from the server
 2. **Electron Support**: API designed to work with Electron-based Vue.js client
-3. **Real-time Updates**: WebSocket connection provides live updates for charts and trading activity
+3. **Real-time Updates**: WebSocket connection provides live updates for charts and trading activity (see [WEBSOCKET_API.md](WEBSOCKET_API.md))
 4. **Independent Operation**: Server runs trading algorithms independently of client connections
 5. **Persistent Storage**: All configurations and data are persisted server-side
 6. **Centralized Configuration**: Server manages all connection and trading settings
-7. **Strict Port Enforcement**: Server will fail to start if port 3587 is not available
+7. **Backtest Architecture**: Server stores backtest definitions only; execution happens client-side with temporary result storage
+8. **Strict Port Enforcement**: Server will fail to start if port 3587 is not available

@@ -180,6 +180,7 @@ app.get('/health', (req, res) => {
 app.use('/api/instances', (await import('./routes/instances.js')).default);
 app.use('/api/trading', (await import('./routes/trading.js')).default);
 app.use('/api/data', (await import('./routes/data.js')).default);
+app.use('/api/backtests', (await import('./routes/backtests.js')).default);
 
 // Legacy API routes (for backward compatibility)
 // Note: /api/auth removed - client should never handle Project X tokens
