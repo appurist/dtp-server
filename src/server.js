@@ -6,7 +6,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import path, { dirname, join } from 'path';
 import fs from 'fs/promises';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
