@@ -32,6 +32,8 @@ export class AlgorithmEngine {
     this.currentPosition = TradingSides.NONE
     this.lastSignal = null
     this.debugMode = false
+    this.entryPrice = 0
+    this.positionQuantity = 1
   }
 
   /**
@@ -69,6 +71,14 @@ export class AlgorithmEngine {
    */
   setCurrentPosition(position) {
     this.currentPosition = position || TradingSides.NONE
+  }
+
+  /**
+   * Set position details for P&L calculations
+   */
+  setPositionDetails(entryPrice, quantity = 1) {
+    this.entryPrice = entryPrice || 0
+    this.positionQuantity = quantity
   }
 
   /**
@@ -400,6 +410,9 @@ export class AlgorithmEngine {
         case ConditionTypes.SLOPE:
           return this.evaluateSlopeCondition(condition, index)
 
+        case 'position-pnl':
+          return this.evaluatePositionPnLCondition(condition, index)
+
         default:
           console.warn(`Unknown condition type: ${condition.type}`)
           return result
@@ -545,6 +558,69 @@ export class AlgorithmEngine {
       }
       if (condition.side === TradingSides.SHORT || condition.side === TradingSides.BOTH) {
         result.short = condition.symmetric ? direction === 'down' : (direction === 'down')
+      }
+    }
+
+    return result
+  }
+
+  /**
+   * Evaluate position P&L condition (for stop-loss and take-profit)
+   */
+  evaluatePositionPnLCondition(condition, index) {
+    const { threshold, comparison } = condition.parameters
+    const result = { long: false, short: false }
+
+    // Only evaluate if we have a current position
+    if (this.currentPosition === TradingSides.NONE) {
+      return result
+    }
+
+    // Calculate current P&L for the position
+    const currentPrice = this.tradingData.closes[index]
+    const entryPrice = this.entryPrice || 0
+
+    if (entryPrice === 0) {
+      return result
+    }
+
+    // Calculate P&L based on position side
+    let pnl = 0
+    if (this.currentPosition === TradingSides.LONG) {
+      pnl = (currentPrice - entryPrice) * this.positionQuantity
+    } else if (this.currentPosition === TradingSides.SHORT) {
+      pnl = (entryPrice - currentPrice) * this.positionQuantity
+    }
+
+    // Apply comparison
+    let conditionMet = false
+    switch (comparison) {
+      case '>':
+        conditionMet = pnl > threshold
+        break
+      case '<':
+        conditionMet = pnl < threshold
+        break
+      case '>=':
+        conditionMet = pnl >= threshold
+        break
+      case '<=':
+        conditionMet = pnl <= threshold
+        break
+      case '==':
+        conditionMet = Math.abs(pnl - threshold) < 0.01
+        break
+      case '!=':
+        conditionMet = Math.abs(pnl - threshold) >= 0.01
+        break
+    }
+
+    // If condition is met, trigger exit for current position
+    if (conditionMet) {
+      if (this.currentPosition === TradingSides.LONG) {
+        result.long = true
+      } else if (this.currentPosition === TradingSides.SHORT) {
+        result.short = true
       }
     }
 

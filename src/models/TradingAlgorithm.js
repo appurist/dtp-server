@@ -234,6 +234,14 @@ export class TradingCondition {
           errors.push('Direction must be "up" or "down"')
         }
         break
+      case 'position-pnl':
+        if (this.parameters.threshold === undefined || this.parameters.threshold === null) {
+          errors.push('Threshold value is required for position-pnl condition')
+        }
+        if (!this.parameters.comparison || !['>', '<', '>=', '<=', '==', '!='].includes(this.parameters.comparison)) {
+          errors.push('Valid comparison operator is required for position-pnl condition (>, <, >=, <=, ==, !=)')
+        }
+        break
     }
 
     return errors
@@ -258,7 +266,8 @@ export const ConditionTypes = {
   CROSSOVER: 'crossover',
   SLOPE: 'slope',
   DIRECTION: 'direction',
-  STRENGTH: 'strength'
+  STRENGTH: 'strength',
+  POSITION_PNL: 'position-pnl'
 }
 
 /**

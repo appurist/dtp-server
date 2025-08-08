@@ -2,8 +2,15 @@ import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { BacktestingService } from '../services/backtesting.js';
+import { historicalDataService } from '../services/historicalDataService.js';
+import { TradingData } from '../models/TradingData.js';
+import { tradingInstanceManager } from '../services/tradingInstanceManager.js';
 
 const router = express.Router();
+
+// Create backtesting service instance
+const backtestingService = new BacktestingService();
 
 /**
  * Get backtests directory path
@@ -270,5 +277,339 @@ router.delete('/:id', async (req, res) => {
     });
   }
 });
+
+/**
+ * POST /api/backtests/:id/run
+ * Start executing a backtest from a saved definition
+ */
+router.post('/:id/run', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const fileName = `${id}.json`;
+    const filePath = path.join(getBacktestsPath(), fileName);
+
+    // Load backtest definition
+    const backtestDef = await readJsonFile(filePath);
+    if (!backtestDef) {
+      return res.status(404).json({
+        success: false,
+        error: 'Backtest definition not found'
+      });
+    }
+
+    // Load algorithm
+    const algorithm = tradingInstanceManager.getAlgorithm(backtestDef.algorithmName);
+    if (!algorithm) {
+      return res.status(400).json({
+        success: false,
+        error: `Algorithm '${backtestDef.algorithmName}' not found`
+      });
+    }
+
+    // Create backtest instance
+    const backtest = backtestingService.createBacktest({
+      name: backtestDef.name,
+      symbol: backtestDef.symbol,
+      algorithmName: backtestDef.algorithmName,
+      startDate: backtestDef.startDate,
+      endDate: backtestDef.endDate,
+      lagTicks: backtestDef.lagTicks || 1,
+      startingCapital: req.body.startingCapital || 10000,
+      commission: req.body.commission || 0
+    });
+
+    // Start backtest execution asynchronously
+    executeBacktest(backtest.id, backtestDef, algorithm, req.app.locals.io);
+
+    res.json({
+      success: true,
+      backtestId: backtest.id,
+      message: 'Backtest started'
+    });
+
+  } catch (error) {
+    console.error('Error starting backtest:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/backtests/:id/status
+ * Get the current status of a running backtest
+ */
+router.get('/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const backtest = backtestingService.getBacktest(id);
+
+    if (!backtest) {
+      return res.status(404).json({
+        success: false,
+        error: 'Backtest not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      backtest: {
+        id: backtest.id,
+        name: backtest.name,
+        status: backtest.status,
+        progress: backtest.progress,
+        startedAt: backtest.startedAt,
+        completedAt: backtest.completedAt,
+        error: backtest.error,
+        results: backtest.results,
+        logs: backtest.logs.slice(-50) // Last 50 log entries
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting backtest status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/backtests/:id/stop
+ * Stop a running backtest
+ */
+router.post('/:id/stop', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const stopped = backtestingService.stopBacktest(id);
+
+    if (!stopped) {
+      return res.status(404).json({
+        success: false,
+        error: 'Backtest not found or not running'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Backtest stopped'
+    });
+
+  } catch (error) {
+    console.error('Error stopping backtest:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Load historical data for backtest, fetching from Project X if missing
+ */
+async function loadHistoricalDataForBacktest(backtestDef, io, backtestId) {
+  const { symbol, startDate, endDate } = backtestDef;
+
+  if (!startDate || !endDate) {
+    throw new Error('Start date and end date are required for backtest');
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  io.emit('backtestUpdate', {
+    backtestId,
+    status: 'LOADING_DATA',
+    message: `Loading historical data for ${symbol} from ${start.toDateString()} to ${end.toDateString()}...`
+  });
+
+  // Try to load from local storage first
+  let historicalData = await historicalDataService.loadHistoricalData(symbol, start, end);
+
+  if (historicalData.length === 0) {
+    // No local data, fetch from Project X
+    io.emit('backtestUpdate', {
+      backtestId,
+      status: 'FETCHING_DATA',
+      message: `Fetching historical data from Project X for ${symbol}...`
+    });
+
+    try {
+      // Search for contract
+      const contracts = await tradingInstanceManager.searchContracts(symbol);
+      if (!contracts.contracts || contracts.contracts.length === 0) {
+        throw new Error(`No contract found for symbol: ${symbol}`);
+      }
+
+      const contract = contracts.contracts[0];
+      console.log(`Using contract: ${contract.name} (${contract.id}) for backtest`);
+
+      // Fetch historical data from Project X
+      const projectXData = await tradingInstanceManager.getHistoricalData(
+        contract.id,
+        '1m', // 1-minute timeframe
+        start,
+        end
+      );
+
+      if (projectXData && projectXData.length > 0) {
+        // Convert to TradingData format and save locally
+        const tradingData = new TradingData(symbol);
+
+        for (const candle of projectXData) {
+          tradingData.addCandle(
+            new Date(candle.timestamp),
+            candle.open,
+            candle.high,
+            candle.low,
+            candle.close,
+            candle.volume || 0
+          );
+        }
+
+        // Save to local storage for future use
+        await saveHistoricalDataLocally(symbol, projectXData, start, end);
+
+        io.emit('backtestUpdate', {
+          backtestId,
+          status: 'DATA_LOADED',
+          message: `Loaded ${projectXData.length} candles from Project X`
+        });
+
+        return tradingData;
+      } else {
+        throw new Error('No historical data returned from Project X');
+      }
+
+    } catch (fetchError) {
+      console.error('Error fetching historical data:', fetchError);
+      throw new Error(`Failed to fetch historical data: ${fetchError.message}`);
+    }
+
+  } else {
+    // Convert local data to TradingData format
+    const tradingData = new TradingData(symbol);
+
+    for (const candle of historicalData) {
+      tradingData.addCandle(
+        new Date(candle.timestamp),
+        candle.open,
+        candle.high,
+        candle.low,
+        candle.close,
+        candle.volume || 0
+      );
+    }
+
+    io.emit('backtestUpdate', {
+      backtestId,
+      status: 'DATA_LOADED',
+      message: `Loaded ${historicalData.length} candles from local storage`
+    });
+
+    return tradingData;
+  }
+}
+
+/**
+ * Save historical data locally for future use
+ */
+async function saveHistoricalDataLocally(symbol, candles, startDate, endDate) {
+  try {
+    // Group candles by date and save daily files
+    const candlesByDate = new Map();
+
+    for (const candle of candles) {
+      const date = new Date(candle.timestamp);
+      const dateKey = date.toISOString().split('T')[0];
+
+      if (!candlesByDate.has(dateKey)) {
+        candlesByDate.set(dateKey, []);
+      }
+      candlesByDate.get(dateKey).push(candle);
+    }
+
+    // Save each day's data
+    for (const [dateKey, dayCandles] of candlesByDate) {
+      const fileName = `${symbol}_${dateKey}.json`;
+      const filePath = path.join(historicalDataService.dataPath, fileName);
+
+      await fs.writeFile(filePath, JSON.stringify(dayCandles, null, 2));
+      console.log(`Saved ${dayCandles.length} candles for ${symbol} on ${dateKey}`);
+    }
+
+  } catch (error) {
+    console.error('Error saving historical data locally:', error);
+    // Don't throw - this is not critical for backtest execution
+  }
+}
+
+/**
+ * Execute backtest with automatic historical data fetching
+ */
+async function executeBacktest(backtestId, backtestDef, algorithm, io) {
+  try {
+    const backtest = backtestingService.getBacktest(backtestId);
+    if (!backtest) {
+      throw new Error('Backtest not found');
+    }
+
+    // Emit initial status
+    io.emit('backtestUpdate', {
+      backtestId,
+      status: 'STARTING',
+      message: 'Preparing backtest...'
+    });
+
+    // Load or fetch historical data
+    const tradingData = await loadHistoricalDataForBacktest(backtestDef, io, backtestId);
+
+    if (tradingData.count === 0) {
+      throw new Error('No historical data available for the specified period');
+    }
+
+    // Run the backtest
+    await backtestingService.runBacktest(
+      backtestId,
+      algorithm,
+      tradingData,
+      // Progress callback
+      (backtest) => {
+        io.emit('backtestUpdate', {
+          backtestId,
+          status: backtest.status,
+          progress: backtest.progress,
+          message: `Processing... ${backtest.progress.toFixed(1)}%`
+        });
+      },
+      // Complete callback
+      (backtest) => {
+        io.emit('backtestUpdate', {
+          backtestId,
+          status: backtest.status,
+          progress: backtest.progress,
+          results: backtest.results,
+          message: 'Backtest completed successfully'
+        });
+      }
+    );
+
+  } catch (error) {
+    console.error('Backtest execution error:', error);
+    const backtest = backtestingService.getBacktest(backtestId);
+    if (backtest) {
+      backtest.fail(error.message);
+    }
+
+    io.emit('backtestUpdate', {
+      backtestId,
+      status: 'FAILED',
+      error: error.message,
+      message: `Backtest failed: ${error.message}`
+    });
+  }
+}
 
 export default router;

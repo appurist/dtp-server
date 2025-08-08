@@ -163,16 +163,72 @@ export class ProjectXClient extends EventEmitter {
   }
 
   /**
-   * Get historical data
+   * Get historical data using Project X retrieveBars API
    */
   async getHistoricalData(contractId, timeframe, startDate, endDate) {
-    const params = new URLSearchParams({
-      contractId,
-      timeframe,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    })
-    return this.makeRequest(`/historical?${params}`)
+    // Convert timeframe to Project X format
+    const { unit, unitNumber } = this.parseTimeframe(timeframe);
+
+    const requestBody = {
+      contractId: contractId,
+      live: false, // Use sim data for backtesting
+      startTime: startDate.toISOString(),
+      endTime: endDate.toISOString(),
+      unit: unit,
+      unitNumber: unitNumber,
+      limit: 20000, // Maximum allowed
+      includePartialBar: false
+    };
+
+    const response = await this.makeRequest('/api/History/retrieveBars', {
+      method: 'POST',
+      body: requestBody
+    });
+
+    // Convert Project X format to our internal format
+    if (response.success && response.bars) {
+      return response.bars.map(bar => ({
+        timestamp: bar.t,
+        open: bar.o,
+        high: bar.h,
+        low: bar.l,
+        close: bar.c,
+        volume: bar.v
+      }));
+    } else {
+      throw new Error(response.errorMessage || 'Failed to retrieve historical data');
+    }
+  }
+
+  /**
+   * Parse timeframe string to Project X unit format
+   * @param {string} timeframe - e.g., '1m', '5m', '1h', '1d'
+   * @returns {object} - {unit, unitNumber}
+   */
+  parseTimeframe(timeframe) {
+    const match = timeframe.match(/^(\d+)([smhd])$/i);
+    if (!match) {
+      throw new Error(`Invalid timeframe format: ${timeframe}`);
+    }
+
+    const number = parseInt(match[1]);
+    const period = match[2].toLowerCase();
+
+    // Project X unit mapping:
+    // 1 = Second, 2 = Minute, 3 = Hour, 4 = Day, 5 = Week, 6 = Month
+    const unitMap = {
+      's': 1, // Second
+      'm': 2, // Minute
+      'h': 3, // Hour
+      'd': 4  // Day
+    };
+
+    const unit = unitMap[period];
+    if (!unit) {
+      throw new Error(`Unsupported timeframe period: ${period}`);
+    }
+
+    return { unit, unitNumber: number };
   }
 
   /**

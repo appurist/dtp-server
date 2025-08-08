@@ -115,6 +115,9 @@ export class BacktestingService {
           entryPrice = signal.price
           entryTime = signal.timestamp
 
+          // Update algorithm engine with position details for P&L calculations
+          this.algorithmEngine.setPositionDetails(entryPrice, positionQuantity)
+
           currentTrade = new TradeRecord({
             entryTime: entryTime,
             side: signal.side,
@@ -144,6 +147,9 @@ export class BacktestingService {
           entryPrice = 0
           entryTime = null
           currentTrade = null
+
+          // Clear position details in algorithm engine
+          this.algorithmEngine.setPositionDetails(0, 1)
         }
       }
 

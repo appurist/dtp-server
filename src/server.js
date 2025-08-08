@@ -176,6 +176,9 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Make Socket.IO instance available to routes
+app.locals.io = io;
+
 // Trading Engine API routes
 app.use('/api/instances', (await import('./routes/instances.js')).default);
 app.use('/api/trading', (await import('./routes/trading.js')).default);
