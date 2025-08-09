@@ -22,6 +22,7 @@ export class BacktestingService {
    */
   createBacktest(config) {
     const backtest = new BacktestInstance({
+      definitionId: config.definitionId,
       name: config.name,
       symbol: config.symbol,
       algorithmName: config.algorithmName,

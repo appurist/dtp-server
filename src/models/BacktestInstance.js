@@ -45,8 +45,8 @@ export class TradeRecord {
       return
     }
 
-    const priceDiff = this.side === 'LONG' ? 
-      (this.exitPrice - this.entryPrice) : 
+    const priceDiff = this.side === 'LONG' ?
+      (this.exitPrice - this.entryPrice) :
       (this.entryPrice - this.exitPrice)
 
     this.pnl = priceDiff * this.quantity - this.commission
@@ -121,7 +121,7 @@ export class BacktestResults {
    */
   static calculateFromTrades(trades, startingCapital = 10000) {
     const results = new BacktestResults({ startingCapital })
-    
+
     if (!trades || trades.length === 0) {
       return results
     }
@@ -136,7 +136,7 @@ export class BacktestResults {
     // Basic metrics
     const winningTrades = completedTrades.filter(t => t.pnl > 0)
     const losingTrades = completedTrades.filter(t => t.pnl < 0)
-    
+
     results.winningTrades = winningTrades.length
     results.losingTrades = losingTrades.length
     results.winRate = (results.winningTrades / results.totalTrades) * 100
@@ -193,7 +193,7 @@ export class BacktestResults {
 
     trades.forEach(trade => {
       runningCapital += trade.pnl
-      
+
       // Update peak
       if (runningCapital > peakCapital) {
         peakCapital = runningCapital
@@ -263,6 +263,7 @@ export class BacktestResults {
 export class BacktestInstance {
   constructor(data = {}) {
     this.id = data.id || uuidv4()
+    this.definitionId = data.definitionId || null
     this.name = data.name || ''
     this.symbol = data.symbol || ''
     this.algorithmName = data.algorithmName || ''

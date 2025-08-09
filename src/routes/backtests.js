@@ -59,6 +59,124 @@ async function writeJsonFile(filePath, data) {
 }
 
 /**
+ * GET /api/backtests/runs
+ * Get all past backtest execution runs
+ */
+router.get('/runs', async (req, res) => {
+  try {
+    const allRuns = backtestingService.getAllBacktests();
+
+    // Format runs for client display
+    const runs = allRuns.map(backtest => ({
+      id: backtest.id,
+      definitionId: backtest.definitionId || null,
+      definitionName: backtest.name,
+      executedAt: backtest.startedAt,
+      completedAt: backtest.completedAt,
+      status: backtest.status,
+      totalPnL: backtest.results?.totalPnL || 0,
+      totalTrades: backtest.results?.totalTrades || 0,
+      winRate: backtest.results?.winRate || 0
+    }));
+
+    // Sort by execution date (newest first)
+    runs.sort((a, b) => new Date(b.executedAt) - new Date(a.executedAt));
+
+    res.json({
+      success: true,
+      runs
+    });
+
+  } catch (error) {
+    console.error('Error getting backtest runs:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/backtests/runs/:runId
+ * Get detailed results for a specific backtest run
+ */
+router.get('/runs/:runId', async (req, res) => {
+  try {
+    const { runId } = req.params;
+    const backtest = backtestingService.getBacktest(runId);
+
+    if (!backtest) {
+      return res.status(404).json({
+        success: false,
+        error: 'Backtest run not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      run: {
+        id: backtest.id,
+        definitionId: backtest.definitionId || null,
+        definitionName: backtest.name,
+        executedAt: backtest.startedAt,
+        completedAt: backtest.completedAt,
+        status: backtest.status,
+        progress: backtest.progress,
+        error: backtest.error,
+        results: backtest.results,
+        logs: backtest.logs,
+        // Include execution parameters
+        parameters: {
+          symbol: backtest.symbol,
+          algorithmName: backtest.algorithmName,
+          startDate: backtest.startDate,
+          endDate: backtest.endDate,
+          startingCapital: backtest.startingCapital,
+          commission: backtest.commission
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting backtest run details:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/backtests/runs/:runId
+ * Delete a specific backtest run from history
+ */
+router.delete('/runs/:runId', async (req, res) => {
+  try {
+    const { runId } = req.params;
+    const deleted = backtestingService.deleteBacktest(runId);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Backtest run not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Backtest run deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting backtest run:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/backtests
  * Get all saved backtest definitions
  */
@@ -308,6 +426,7 @@ router.post('/:id/run', async (req, res) => {
 
     // Create backtest instance
     const backtest = backtestingService.createBacktest({
+      definitionId: id,
       name: backtestDef.name,
       symbol: backtestDef.symbol,
       algorithmName: backtestDef.algorithmName,
@@ -531,12 +650,10 @@ async function saveHistoricalDataLocally(symbol, candles, startDate, endDate) {
       candlesByDate.get(dateKey).push(candle);
     }
 
-    // Save each day's data
+    // Save each day's data using the historical data service
     for (const [dateKey, dayCandles] of candlesByDate) {
-      const fileName = `${symbol}_${dateKey}.json`;
-      const filePath = path.join(historicalDataService.dataPath, fileName);
-
-      await fs.writeFile(filePath, JSON.stringify(dayCandles, null, 2));
+      const date = new Date(dateKey);
+      await historicalDataService.saveHistoricalData(symbol, date, dayCandles);
       console.log(`Saved ${dayCandles.length} candles for ${symbol} on ${dateKey}`);
     }
 
