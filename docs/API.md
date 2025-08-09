@@ -965,6 +965,82 @@ Stop a running backtest.
 }
 ```
 
+#### GET /api/backtests/runs
+Get all past backtest execution runs.
+
+**Response:**
+```json
+{
+  "success": true,
+  "runs": [
+    {
+      "id": "run_uuid",
+      "definitionId": "def_uuid",
+      "definitionName": "MQ SMA Strategy",
+      "executedAt": "2025-08-08T10:00:00.000Z",
+      "completedAt": "2025-08-08T10:05:00.000Z",
+      "status": "COMPLETED",
+      "totalPnL": 125.50,
+      "totalTrades": 8,
+      "winRate": 62.5
+    }
+  ]
+}
+```
+
+#### GET /api/backtests/runs/{runId}
+Get detailed results for a specific backtest run.
+
+**Response:**
+```json
+{
+  "success": true,
+  "run": {
+    "id": "run_uuid",
+    "definitionId": "def_uuid",
+    "definitionName": "MQ SMA Strategy",
+    "executedAt": "2025-08-08T10:00:00.000Z",
+    "completedAt": "2025-08-08T10:05:00.000Z",
+    "status": "COMPLETED",
+    "progress": 100,
+    "error": null,
+    "results": {
+      "totalTrades": 8,
+      "winningTrades": 5,
+      "totalPnL": 125.50,
+      "equityCurve": [...],
+      "drawdownCurve": [...]
+    },
+    "logs": [
+      {
+        "timestamp": "2025-08-08T10:01:00.000Z",
+        "level": "info",
+        "message": "Entered LONG position at 18500.25"
+      }
+    ],
+    "parameters": {
+      "symbol": "MQ",
+      "algorithmName": "SMA Crossover",
+      "startDate": "2025-07-27",
+      "endDate": "2025-08-02",
+      "startingCapital": 10000,
+      "commission": 0
+    }
+  }
+}
+```
+
+#### DELETE /api/backtests/runs/{runId}
+Delete a specific backtest run from history.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Backtest run deleted successfully"
+}
+```
+
 #### Backtest Architecture
 
 **Definition Storage:**
