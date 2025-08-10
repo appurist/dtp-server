@@ -6,6 +6,7 @@ import { BacktestingService } from '../services/backtesting.js';
 import { historicalDataService } from '../services/historicalDataService.js';
 import { TradingData } from '../models/TradingData.js';
 import { tradingInstanceManager } from '../services/tradingInstanceManager.js';
+import { BacktestStatus, BacktestPhaseStatus } from '../models/BacktestInstance.js';
 
 const router = express.Router();
 
@@ -251,12 +252,35 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Validate symbol by checking if contract exists
+    try {
+      const contracts = await tradingInstanceManager.searchContracts(backtestData.symbol);
+      if (!contracts.contracts || contracts.contracts.length === 0) {
+        let suggestion = '';
+        if (backtestData.symbol.toUpperCase() === 'NQ') {
+          suggestion = ' Did you mean "NQU5" (E-mini NASDAQ futures)?';
+        } else if (backtestData.symbol.toUpperCase() === 'ES') {
+          suggestion = ' Did you mean "ESU5" (E-mini S&P 500 futures)?';
+        } else if (backtestData.symbol.toUpperCase() === 'YM') {
+          suggestion = ' Did you mean "YMU5" (E-mini Dow futures)?';
+        }
+        return res.status(400).json({
+          success: false,
+          error: `Invalid symbol: ${backtestData.symbol}.${suggestion} Please use valid Project X contract symbols.`
+        });
+      }
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: `Unable to validate symbol: ${error.message}`
+      });
+    }
+
     // Generate ID and timestamps
     const now = new Date().toISOString();
     const backtest = {
       id: uuidv4(),
       name: backtestData.name,
-      description: backtestData.description || '',
       symbol: backtestData.symbol,
       algorithmName: backtestData.algorithmName,
       startDate: backtestData.startDate,
@@ -540,7 +564,7 @@ async function loadHistoricalDataForBacktest(backtestDef, io, backtestId) {
 
   io.emit('backtestUpdate', {
     backtestId,
-    status: 'LOADING_DATA',
+    status: BacktestPhaseStatus.LOADING_DATA,
     message: `Loading historical data for ${symbol} from ${start.toDateString()} to ${end.toDateString()}...`
   });
 
@@ -551,7 +575,7 @@ async function loadHistoricalDataForBacktest(backtestDef, io, backtestId) {
     // No local data, fetch from Project X
     io.emit('backtestUpdate', {
       backtestId,
-      status: 'FETCHING_DATA',
+      status: BacktestPhaseStatus.FETCHING_DATA,
       message: `Fetching historical data from Project X for ${symbol}...`
     });
 
@@ -559,7 +583,16 @@ async function loadHistoricalDataForBacktest(backtestDef, io, backtestId) {
       // Search for contract
       const contracts = await tradingInstanceManager.searchContracts(symbol);
       if (!contracts.contracts || contracts.contracts.length === 0) {
-        throw new Error(`No contract found for symbol: ${symbol}`);
+        // Try to provide helpful suggestions for common symbols
+        let suggestion = '';
+        if (symbol.toUpperCase() === 'NQ') {
+          suggestion = ' Did you mean "NQU5" (E-mini NASDAQ futures)?';
+        } else if (symbol.toUpperCase() === 'ES') {
+          suggestion = ' Did you mean "ESU5" (E-mini S&P 500 futures)?';
+        } else if (symbol.toUpperCase() === 'YM') {
+          suggestion = ' Did you mean "YMU5" (E-mini Dow futures)?';
+        }
+        throw new Error(`No contract found for symbol: ${symbol}.${suggestion} Please use valid Project X contract symbols.`);
       }
 
       const contract = contracts.contracts[0];
@@ -593,7 +626,7 @@ async function loadHistoricalDataForBacktest(backtestDef, io, backtestId) {
 
         io.emit('backtestUpdate', {
           backtestId,
-          status: 'DATA_LOADED',
+          status: BacktestPhaseStatus.DATA_LOADED,
           message: `Loaded ${projectXData.length} candles from Project X`
         });
 
@@ -624,7 +657,7 @@ async function loadHistoricalDataForBacktest(backtestDef, io, backtestId) {
 
     io.emit('backtestUpdate', {
       backtestId,
-      status: 'DATA_LOADED',
+      status: BacktestPhaseStatus.DATA_LOADED,
       message: `Loaded ${historicalData.length} candles from local storage`
     });
 
@@ -676,7 +709,7 @@ async function executeBacktest(backtestId, backtestDef, algorithm, io) {
     // Emit initial status
     io.emit('backtestUpdate', {
       backtestId,
-      status: 'STARTING',
+      status: BacktestPhaseStatus.STARTING,
       message: 'Preparing backtest...'
     });
 
@@ -722,7 +755,7 @@ async function executeBacktest(backtestId, backtestDef, algorithm, io) {
 
     io.emit('backtestUpdate', {
       backtestId,
-      status: 'FAILED',
+      status: BacktestStatus.FAILED,
       error: error.message,
       message: `Backtest failed: ${error.message}`
     });

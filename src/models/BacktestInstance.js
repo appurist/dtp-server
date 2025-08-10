@@ -8,11 +8,21 @@ import { v4 as uuidv4 } from 'uuid'
  * Backtest status enumeration
  */
 export const BacktestStatus = {
-  CREATED: 'Created',
-  RUNNING: 'Running',
-  COMPLETED: 'Completed',
-  FAILED: 'Failed',
-  STOPPED: 'Stopped'
+  CREATED: 'CREATED',
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  STOPPED: 'STOPPED'
+}
+
+/**
+ * Backtest execution phase status (for WebSocket updates)
+ */
+export const BacktestPhaseStatus = {
+  STARTING: 'STARTING',
+  LOADING_DATA: 'LOADING_DATA',
+  FETCHING_DATA: 'FETCHING_DATA',
+  DATA_LOADED: 'DATA_LOADED'
 }
 
 /**

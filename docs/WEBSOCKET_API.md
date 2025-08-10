@@ -16,7 +16,7 @@ Emitted when an instance's status or properties change (start, stop, status upda
 {
   instanceId: string,     // Unique instance identifier
   state: {
-    status: string,       // 'Running', 'Stopped', 'Starting', 'Stopping', 'Paused', 'Error'
+    status: string,       // 'RUNNING', 'STOPPED', 'STARTING', 'STOPPING', 'PAUSED', 'ERROR'
     startedAt?: Date,     // When instance was started (if running)
     stoppedAt?: Date,     // When instance was stopped (if stopped)
     lastUpdate?: Date,    // Last status update timestamp
@@ -160,7 +160,7 @@ socketService.on('instanceLog', (logData) => { /* ... */ })
 io.emit('instanceStateChanged', {
   instanceId: instance.id,
   state: {
-    status: 'Running',
+    status: 'RUNNING',
     startedAt: new Date()
   }
 })
@@ -169,10 +169,104 @@ io.emit('instanceStateChanged', {
 io.emit('instanceStateChanged', {
   instanceId: instance.id,
   state: {
-    status: 'Stopped',
+    status: 'STOPPED',
     stoppedAt: new Date()
   }
 })
+```
+
+## Backtest Events
+
+### backtestUpdate
+
+Emitted during backtest execution to provide real-time progress updates.
+
+**Event:** `backtestUpdate`
+
+**Payload:**
+```javascript
+{
+  backtestId: string,           // Unique backtest execution identifier
+  status: string,               // 'STARTING', 'LOADING_DATA', 'FETCHING_DATA', 'DATA_LOADED', 'RUNNING', 'COMPLETED', 'FAILED'
+  progress?: number,            // Progress percentage (0-100) when status is 'RUNNING'
+  message: string,              // Human-readable status message
+  error?: string,               // Error message if status is 'FAILED'
+  results?: object             // Complete backtest results when status is 'COMPLETED'
+}
+```
+
+**Example Usage:**
+```javascript
+// Listen for backtest updates
+socket.on('backtestUpdate', (update) => {
+  console.log(`Backtest ${update.backtestId}: ${update.message}`);
+
+  if (update.progress) {
+    updateProgressBar(update.progress);
+  }
+
+  if (update.status === 'COMPLETED') {
+    displayResults(update.results);
+  }
+
+  if (update.status === 'FAILED') {
+    showError(update.error);
+  }
+});
+```
+
+**Example Events:**
+```javascript
+// Data loading phase
+{
+  backtestId: "uuid-1234",
+  status: "LOADING_DATA",
+  message: "Loading historical data for NQ from Thu Aug 01 2025 to Fri Aug 02 2025..."
+}
+
+// Data fetching from external API
+{
+  backtestId: "uuid-1234",
+  status: "FETCHING_DATA",
+  message: "Fetching historical data from Project X for NQ..."
+}
+
+// Data loaded successfully
+{
+  backtestId: "uuid-1234",
+  status: "DATA_LOADED",
+  message: "Loaded 1260 candles from Project X"
+}
+
+// Execution progress
+{
+  backtestId: "uuid-1234",
+  status: "RUNNING",
+  progress: 45.2,
+  message: "Processing... 45.2%"
+}
+
+// Completion with results
+{
+  backtestId: "uuid-1234",
+  status: "COMPLETED",
+  progress: 100,
+  message: "Backtest completed successfully",
+  results: {
+    totalTrades: 28,
+    winningTrades: 13,
+    totalPnL: -111,
+    // ... complete results object
+  }
+}
+
+// Error case
+{
+  backtestId: "uuid-1234",
+  status: "FAILED",
+  message: "Backtest failed: Invalid algorithm configuration",
+  error: "Invalid algorithm configuration"
+}
 ```
 
 ### Benefits
@@ -185,7 +279,7 @@ io.emit('instanceStateChanged', {
 
 The client has been updated to remove all polling mechanisms:
 - ❌ Auto-refresh intervals removed
-- ❌ Forced refresh calls removed  
+- ❌ Forced refresh calls removed
 - ❌ Console logging noise eliminated
 - ✅ WebSocket event handlers ready
 - ✅ Real-time UI updates implemented

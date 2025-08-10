@@ -795,7 +795,6 @@ Get all saved backtest definitions.
     {
       "id": "backtest_def_uuid",
       "name": "MQ SMA Strategy",
-      "description": "10/20 SMA crossover on MQ futures",
       "symbol": "MQ",
       "algorithmName": "SMA Crossover",
       "startDate": "2025-07-27",
@@ -815,7 +814,6 @@ Create and save a new backtest definition.
 ```json
 {
   "name": "MQ SMA Strategy",
-  "description": "10/20 SMA crossover on MQ futures",
   "symbol": "MQ",
   "algorithmName": "SMA Crossover",
   "startDate": "2025-07-27",
@@ -853,7 +851,6 @@ Get a specific backtest definition.
   "backtest": {
     "id": "backtest_def_uuid",
     "name": "MQ SMA Strategy",
-    "description": "10/20 SMA crossover on MQ futures",
     "symbol": "MQ",
     "algorithmName": "SMA Crossover",
     "startDate": "2025-07-27",
@@ -872,7 +869,6 @@ Update a backtest definition.
 ```json
 {
   "name": "Updated MQ SMA Strategy",
-  "description": "Modified 10/20 SMA crossover strategy",
   "startDate": "2025-07-20",
   "endDate": "2025-08-05",
   "lagTicks": 2
@@ -1046,7 +1042,7 @@ Delete a specific backtest run from history.
 **Definition Storage:**
 - Server stores backtest **definitions** in `data/backtests/` directory
 - Each definition is saved as a JSON file with UUID filename
-- Definitions include metadata (id, name, description, timestamps) and parameters (symbol, algorithm, date range, lag ticks)
+- Definitions include metadata (id, name, timestamps) and parameters (symbol, algorithm, date range, lag ticks)
 
 **Execution Architecture:**
 1. **Backtest Definitions** are managed server-side via REST API
