@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { TradingInstance } from '../models/tradingInstance.js'
+import { TradingInstance, InstanceStatus } from '../models/tradingInstance.js'
 import { projectXClient } from './projectXClient.js'
 import fs from 'fs/promises'
 import path from 'path'
@@ -259,26 +259,26 @@ export class TradingInstanceManager extends EventEmitter {
   }
 
   /**
-   * Update runtime states (only for RUNNING instances)
+   * Update runtime states for active instances
    */
   updateInstanceStates() {
     if (this.isDisposed) return
 
     for (const [instanceId, instance] of this.instances) {
-      // Only update state for running instances - stopped instances don't have runtime state
-      if (instance.status === 'RUNNING') {
-        try {
-          const newState = instance.getState()
-          const previousState = this.instanceStates.get(instanceId)
+      // Update state for all instances, but only emit changes for active ones
+      try {
+        const newState = instance.getState()
+        const previousState = this.instanceStates.get(instanceId)
 
-          // Only emit event if state has actually changed
-          if (!previousState || this.hasStateChanged(previousState, newState)) {
-            this.instanceStates.set(instanceId, newState)
-            this.emit('instanceStateChanged', { instanceId, state: newState })
-          }
-        } catch (error) {
-          console.error(`[TradingInstanceManager] Error updating state for running instance ${instanceId}:`, error.message)
+        // Always store the current state
+        this.instanceStates.set(instanceId, newState)
+
+        // Only emit event if state has actually changed
+        if (!previousState || this.hasStateChanged(previousState, newState)) {
+          this.emit('instanceStateChanged', { instanceId, state: newState })
         }
+      } catch (error) {
+        console.error(`[TradingInstanceManager] Error updating state for instance ${instanceId}:`, error.message)
       }
     }
   }

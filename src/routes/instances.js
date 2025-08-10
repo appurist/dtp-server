@@ -1,5 +1,6 @@
 import express from 'express';
-import { tradingInstanceManager } from '../services/tradingInstanceManager.js';
+import { tradingInstanceManager } from '../services/tradingInstanceManager.js'
+import { InstanceStatus } from '../models/tradingInstance.js';
 
 const router = express.Router();
 
@@ -11,18 +12,30 @@ router.get('/', async (req, res) => {
   try {
     const instances = tradingInstanceManager.getAllInstances();
     const instanceData = instances.map(instance => {
-      const config = instance.toConfig();
-      // Only add runtime state for running instances
-      if (instance.status === 'RUNNING') {
-        try {
-          const state = instance.getState();
-          return { ...config, ...state };
-        } catch (error) {
-          console.warn(`Error getting state for running instance ${instance.id}:`, error.message);
-          return config;
-        }
+      try {
+        // Always return the full state for all instances
+        const state = instance.getState();
+        return state;
+      } catch (error) {
+        console.warn(`Error getting state for instance ${instance.id}:`, error.message);
+        // Fallback to config with safe defaults
+        const config = instance.toConfig();
+        return {
+          ...config,
+          // Add safe defaults for runtime fields that frontend expects
+          totalPnL: 0,
+          totalTrades: 0,
+          winningTrades: 0,
+          losingTrades: 0,
+          winRate: 0,
+          currentPrice: 0,
+          unrealizedPnL: 0,
+          candleCount: 0,
+          runningTime: 0,
+          lastUpdate: null,
+          currentPosition: { side: 'NONE', quantity: 0, entryPrice: 0 }
+        };
       }
-      return config;
     });
 
     res.json({

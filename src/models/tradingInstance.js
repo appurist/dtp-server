@@ -5,6 +5,20 @@ import { AlgorithmEngine } from '../services/algorithmEngine.js'
 import { projectXClient } from '../services/projectXClient.js'
 
 /**
+ * Trading Instance Status
+ */
+export const InstanceStatus = {
+  CREATED: 'CREATED',       // Instance created but never started
+  STARTING: 'STARTING',     // Instance is starting up
+  RUNNING: 'RUNNING',       // Instance is actively running
+  PAUSED: 'PAUSED',         // Instance is paused
+  STOPPING: 'STOPPING',     // Instance is stopping
+  STOPPED: 'STOPPED',       // Instance stopped normally
+  FAILED: 'FAILED',         // Instance failed with error
+  COMPLETED: 'COMPLETED'    // Instance completed successfully (for finite runs)
+}
+
+/**
  * Trading Instance - Represents a single trading strategy execution
  * Based on the C# Instance implementation
  */
@@ -21,10 +35,12 @@ export class TradingInstance extends EventEmitter {
     this.algorithmName = config.algorithmName || ''
 
     // Status and lifecycle
-    this.status = 'STOPPED' // RUNNING, STOPPED, PAUSED
+    this.status = config.status || InstanceStatus.CREATED
     this.simulationMode = config.simulationMode !== undefined ? config.simulationMode : true
-    this.startTime = null
-    this.stopTime = null
+    this.startTime = config.startTime || null
+    this.stopTime = config.stopTime || null
+    this.lastRunAt = config.lastRunAt || null // Track when it was last run
+    this.totalRunTime = config.totalRunTime || 0 // Cumulative run time in milliseconds
 
     // Trading configuration
     this.startingCapital = config.startingCapital || 10000
@@ -115,7 +131,7 @@ export class TradingInstance extends EventEmitter {
    */
   async start() {
     try {
-      if (this.status === 'RUNNING') {
+      if (this.status === InstanceStatus.RUNNING) {
         this.log('Instance already running')
         return false
       }
@@ -127,11 +143,15 @@ export class TradingInstance extends EventEmitter {
 
       this.log('Starting trading instance...')
 
+      // Set starting status
+      this.status = InstanceStatus.STARTING
+      this.emit('statusChanged', { instanceId: this.id, status: this.status })
+
       // Reset state
-      this.status = 'RUNNING'
       this.startTime = new Date()
       this.stopTime = null
       this.lastSignalTime = null
+      this.lastRunAt = new Date().toISOString()
 
       // Reset position if in simulation mode
       if (this.simulationMode) {
@@ -152,17 +172,21 @@ export class TradingInstance extends EventEmitter {
       // Subscribe to market data - this must succeed for the instance to start
       const subscribed = await this.subscribeToMarketData()
       if (!subscribed) {
-        this.status = 'STOPPED'
+        this.status = InstanceStatus.FAILED
+        this.emit('statusChanged', { instanceId: this.id, status: this.status })
         throw new Error('Failed to subscribe to market data - instance cannot start')
       }
 
+      // Successfully started
+      this.status = InstanceStatus.RUNNING
       this.log(`Instance ${this.name} started successfully`)
       this.emit('statusChanged', { instanceId: this.id, status: this.status })
 
       return true
     } catch (error) {
       this.log(`Error starting instance: ${error.message}`)
-      this.status = 'STOPPED'
+      this.status = InstanceStatus.FAILED
+      this.emit('statusChanged', { instanceId: this.id, status: this.status })
       return false
     }
   }
@@ -172,16 +196,23 @@ export class TradingInstance extends EventEmitter {
    */
   async stop() {
     try {
-      if (this.status === 'STOPPED') {
+      if (this.status === InstanceStatus.STOPPED || this.status === InstanceStatus.FAILED) {
         return true
       }
 
       this.log('Stopping trading instance...')
+      this.status = InstanceStatus.STOPPING
+      this.emit('statusChanged', { instanceId: this.id, status: this.status })
 
       // Unsubscribe from market data
       await this.unsubscribeFromMarketData()
 
-      this.status = 'STOPPED'
+      // Update cumulative run time
+      if (this.startTime) {
+        this.totalRunTime += Date.now() - this.startTime.getTime()
+      }
+
+      this.status = InstanceStatus.STOPPED
       this.stopTime = new Date()
 
       this.log(`Instance ${this.name} stopped`)
@@ -190,6 +221,8 @@ export class TradingInstance extends EventEmitter {
       return true
     } catch (error) {
       this.log(`Error stopping instance: ${error.message}`)
+      this.status = InstanceStatus.FAILED
+      this.emit('statusChanged', { instanceId: this.id, status: this.status })
       return false
     }
   }
@@ -198,11 +231,12 @@ export class TradingInstance extends EventEmitter {
    * Pause the trading instance
    */
   async pause() {
-    if (this.status !== 'RUNNING') {
+    if (this.status !== InstanceStatus.RUNNING) {
+      this.log('Instance is not running - cannot pause')
       return false
     }
 
-    this.status = 'PAUSED'
+    this.status = InstanceStatus.PAUSED
     this.log(`Instance ${this.name} paused`)
     this.emit('statusChanged', { instanceId: this.id, status: this.status })
 
@@ -213,15 +247,38 @@ export class TradingInstance extends EventEmitter {
    * Resume the trading instance
    */
   async resume() {
-    if (this.status !== 'PAUSED') {
+    if (this.status !== InstanceStatus.PAUSED) {
+      this.log('Instance is not paused - cannot resume')
       return false
     }
 
-    this.status = 'RUNNING'
+    this.status = InstanceStatus.RUNNING
     this.log(`Instance ${this.name} resumed`)
     this.emit('statusChanged', { instanceId: this.id, status: this.status })
 
     return true
+  }
+
+  /**
+   * Check if instance is in a terminal status
+   */
+  isTerminalStatus() {
+    return [
+      InstanceStatus.STOPPED,
+      InstanceStatus.FAILED,
+      InstanceStatus.COMPLETED
+    ].includes(this.status)
+  }
+
+  /**
+   * Check if instance is active (running or can be resumed)
+   */
+  isActive() {
+    return [
+      InstanceStatus.STARTING,
+      InstanceStatus.RUNNING,
+      InstanceStatus.PAUSED
+    ].includes(this.status)
   }
 
   /**
@@ -651,7 +708,14 @@ export class TradingInstance extends EventEmitter {
       algorithmName: this.algorithmName,
       simulationMode: this.simulationMode,
       startingCapital: this.startingCapital,
-      commission: this.commission
+      commission: this.commission,
+
+      // Include status and lifecycle info for persistence
+      status: this.status,
+      startTime: this.startTime,
+      stopTime: this.stopTime,
+      lastRunAt: this.lastRunAt,
+      totalRunTime: this.totalRunTime
     }
   }
 
