@@ -1,22 +1,24 @@
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path, { dirname, join } from 'path';
+
+// Load environment variables FIRST, before any other imports
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envPath = path.join(__dirname, '..', '.env');
+dotenv.config({ path: envPath });
+
+// Now import everything else that might depend on environment variables
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import path, { dirname, join } from 'path';
 import fs from 'fs/promises';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { tradingInstanceManager } from './services/tradingInstanceManager.js';
-
-// Load environment variables
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const app = express();
 const server = createServer(app);

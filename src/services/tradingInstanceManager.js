@@ -18,11 +18,13 @@ export class TradingInstanceManager extends EventEmitter {
     this.algorithms = new Map() // algorithmName -> algorithm config
 
     // Configuration
-    this.dataPath = process.env.DATA_PATH || './data'
+    this.dataPath = this.expandDataPath(process.env.DATA_PATH || './data')
     this.instancesFile = path.join(this.dataPath, 'instances.json')
     this.algorithmsPath = this.getAlgorithmsPath()
     this.connectionFile = path.join(this.dataPath, 'connection.json')
     this.connectionConfig = null
+
+
 
     // State update timer
     this.stateUpdateInterval = null
@@ -33,13 +35,20 @@ export class TradingInstanceManager extends EventEmitter {
   }
 
   /**
+   * Expand tilde in data path
+   */
+  expandDataPath(dataPath) {
+    if (dataPath.startsWith('~/')) {
+      return path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
+    }
+    return dataPath;
+  }
+
+  /**
    * Get algorithms path (subfolder of DATA_PATH)
    */
   getAlgorithmsPath() {
-    let dataPath = process.env.DATA_PATH || './data';
-    if (dataPath.startsWith('~/')) {
-      dataPath = path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
-    }
+    const dataPath = this.expandDataPath(process.env.DATA_PATH || './data');
     return path.join(dataPath, 'algorithms');
   }
 
@@ -732,5 +741,44 @@ export class TradingInstanceManager extends EventEmitter {
   }
 }
 
-// Singleton instance
-export const tradingInstanceManager = new TradingInstanceManager()
+// Singleton instance with lazy initialization
+let _instance = null
+
+export const tradingInstanceManager = {
+  get instance() {
+    if (!_instance) {
+      _instance = new TradingInstanceManager()
+    }
+    return _instance
+  },
+
+  // Proxy all methods to the singleton instance
+  getInstance: (...args) => tradingInstanceManager.instance.getInstance(...args),
+  getAllInstances: (...args) => tradingInstanceManager.instance.getAllInstances(...args),
+  getInstanceState: (...args) => tradingInstanceManager.instance.getInstanceState(...args),
+  getAllInstanceStates: (...args) => tradingInstanceManager.instance.getAllInstanceStates(...args),
+  startInstance: (...args) => tradingInstanceManager.instance.startInstance(...args),
+  stopInstance: (...args) => tradingInstanceManager.instance.stopInstance(...args),
+  pauseInstance: (...args) => tradingInstanceManager.instance.pauseInstance(...args),
+  resumeInstance: (...args) => tradingInstanceManager.instance.resumeInstance(...args),
+  deleteInstance: (...args) => tradingInstanceManager.instance.deleteInstance(...args),
+  updateInstance: (...args) => tradingInstanceManager.instance.updateInstance(...args),
+  createInstance: (...args) => tradingInstanceManager.instance.createInstance(...args),
+  getAlgorithms: (...args) => tradingInstanceManager.instance.getAlgorithms(...args),
+  getAlgorithm: (...args) => tradingInstanceManager.instance.getAlgorithm(...args),
+  testConnection: (...args) => tradingInstanceManager.instance.testConnection(...args),
+  getAccounts: (...args) => tradingInstanceManager.instance.getAccounts(...args),
+  searchContracts: (...args) => tradingInstanceManager.instance.searchContracts(...args),
+  getClientConfig: (...args) => tradingInstanceManager.instance.getClientConfig(...args),
+  getServerStatus: (...args) => tradingInstanceManager.instance.getServerStatus(...args),
+  subscribeToMarketData: (...args) => tradingInstanceManager.instance.subscribeToMarketData(...args),
+  unsubscribeFromMarketData: (...args) => tradingInstanceManager.instance.unsubscribeFromMarketData(...args),
+  getHistoricalData: (...args) => tradingInstanceManager.instance.getHistoricalData(...args),
+  dispose: (...args) => tradingInstanceManager.instance.dispose(...args),
+
+  // Event emitter methods
+  on: (...args) => tradingInstanceManager.instance.on(...args),
+  off: (...args) => tradingInstanceManager.instance.off(...args),
+  emit: (...args) => tradingInstanceManager.instance.emit(...args),
+  removeAllListeners: (...args) => tradingInstanceManager.instance.removeAllListeners(...args)
+}
