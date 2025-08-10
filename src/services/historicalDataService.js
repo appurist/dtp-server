@@ -93,8 +93,7 @@ class HistoricalDataService {
 
       await fs.writeFile(filePath, JSON.stringify(sortedData, null, 2));
 
-      console.log(`Saved ${Array.isArray(sortedData) ? sortedData.length : 1} records for ${symbol} on ${date.toISOString().split('T')[0]}`);
-
+      // Removed noisy debug log - only log errors, not successful saves
       return true;
     } catch (error) {
       console.error(`Error saving historical data for ${symbol}:`, error);

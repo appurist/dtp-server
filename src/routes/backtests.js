@@ -718,7 +718,7 @@ async function saveHistoricalDataLocally(symbol, candles, startDate, endDate) {
     for (const [dateKey, dayCandles] of candlesByDate) {
       const date = new Date(dateKey);
       await historicalDataService.saveHistoricalData(symbol, date, dayCandles);
-      console.log(`Saved ${dayCandles.length} candles for ${symbol} on ${dateKey}`);
+      // Removed noisy debug log - data saving is already logged in historicalDataService
     }
 
   } catch (error) {
