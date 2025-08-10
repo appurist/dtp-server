@@ -125,6 +125,7 @@ router.get('/runs/:runId', async (req, res) => {
         progress: backtest.progress,
         error: backtest.error,
         results: backtest.results,
+        trades: backtest.trades || [],
         logs: backtest.logs,
         // Include execution parameters
         parameters: {
@@ -140,6 +141,36 @@ router.get('/runs/:runId', async (req, res) => {
 
   } catch (error) {
     console.error('Error getting backtest run details:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/backtests/runs/:runId/trades
+ * Get trade history for a specific backtest run
+ */
+router.get('/runs/:runId/trades', async (req, res) => {
+  try {
+    const { runId } = req.params;
+    const backtest = backtestingService.getBacktest(runId);
+
+    if (!backtest) {
+      return res.status(404).json({
+        success: false,
+        error: 'Backtest run not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      trades: backtest.trades || []
+    });
+
+  } catch (error) {
+    console.error('Error getting backtest trades:', error);
     res.status(500).json({
       success: false,
       error: error.message

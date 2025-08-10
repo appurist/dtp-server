@@ -37,8 +37,8 @@ export class TradingInstance extends EventEmitter {
     // Status and lifecycle
     this.status = config.status || InstanceStatus.CREATED
     this.simulationMode = config.simulationMode !== undefined ? config.simulationMode : true
-    this.startTime = config.startTime || null
-    this.stopTime = config.stopTime || null
+    this.startTime = config.startTime ? (config.startTime instanceof Date ? config.startTime : new Date(config.startTime)) : null
+    this.stopTime = config.stopTime ? (config.stopTime instanceof Date ? config.stopTime : new Date(config.stopTime)) : null
     this.lastRunAt = config.lastRunAt || null // Track when it was last run
     this.totalRunTime = config.totalRunTime || 0 // Cumulative run time in milliseconds
 
@@ -209,7 +209,8 @@ export class TradingInstance extends EventEmitter {
 
       // Update cumulative run time
       if (this.startTime) {
-        this.totalRunTime += Date.now() - this.startTime.getTime()
+        const startTimeMs = this.startTime instanceof Date ? this.startTime.getTime() : new Date(this.startTime).getTime()
+        this.totalRunTime += Date.now() - startTimeMs
       }
 
       this.status = InstanceStatus.STOPPED
@@ -650,7 +651,7 @@ export class TradingInstance extends EventEmitter {
       simulationMode: this.simulationMode,
       startTime: this.startTime,
       stopTime: this.stopTime,
-      runningTime: this.status === 'RUNNING' && this.startTime ? Date.now() - this.startTime.getTime() : 0,
+      runningTime: this.status === 'RUNNING' && this.startTime ? Date.now() - (this.startTime instanceof Date ? this.startTime.getTime() : new Date(this.startTime).getTime()) : 0,
 
       // Position info
       currentPosition: { ...this.currentPosition },
