@@ -7,6 +7,8 @@ import { AlgorithmEngine } from './algorithmEngine.js'
 import { BacktestInstance, BacktestStatus, TradeRecord, BacktestResults } from '../models/BacktestInstance.js'
 import { TradingData } from '../models/TradingData.js'
 import { TradingSides } from '../models/TradingAlgorithm.js'
+import fs from 'fs/promises'
+import path from 'path'
 
 /**
  * Backtesting Service class
@@ -15,6 +17,10 @@ export class BacktestingService {
   constructor() {
     this.activeBacktests = new Map() // backtestId -> BacktestInstance
     this.algorithmEngine = new AlgorithmEngine()
+    this.backtestResultsFile = path.join(process.env.DATA_PATH || './data', 'backtest-results.json')
+
+    // Load existing backtest results on startup
+    this.loadBacktestResults()
   }
 
   /**
@@ -71,12 +77,18 @@ export class BacktestingService {
       backtest.complete(results)
       backtest.addLog('info', 'Backtest completed successfully')
 
+      // Save results to disk
+      await this.saveBacktestResults()
+
       onComplete?.(backtest)
       return backtest
 
     } catch (error) {
       backtest.fail(error.message)
       backtest.addLog('error', `Backtest failed: ${error.message}`)
+
+      // Save failed backtest results too
+      await this.saveBacktestResults()
       throw error
     }
   }
@@ -216,8 +228,12 @@ export class BacktestingService {
   /**
    * Delete a backtest
    */
-  deleteBacktest(backtestId) {
-    return this.activeBacktests.delete(backtestId)
+  async deleteBacktest(backtestId) {
+    const deleted = this.activeBacktests.delete(backtestId)
+    if (deleted) {
+      await this.saveBacktestResults()
+    }
+    return deleted
   }
 
   /**
@@ -303,5 +319,68 @@ export class BacktestingService {
       onProgress,
       onComplete
     )
+  }
+
+  /**
+   * Load backtest results from disk
+   */
+  async loadBacktestResults() {
+    try {
+      const data = await fs.readFile(this.backtestResultsFile, 'utf8')
+      const parsed = JSON.parse(data)
+
+      if (parsed.backtests && Array.isArray(parsed.backtests)) {
+        for (const backtestData of parsed.backtests) {
+          const backtest = new BacktestInstance(backtestData)
+          this.activeBacktests.set(backtest.id, backtest)
+        }
+        console.log(`[BacktestingService] Loaded ${parsed.backtests.length} backtest results`)
+      }
+    } catch (error) {
+      // File doesn't exist or is invalid - start with empty results
+      console.log('[BacktestingService] No existing backtest results found, starting fresh')
+    }
+  }
+
+  /**
+   * Save backtest results to disk
+   */
+  async saveBacktestResults() {
+    try {
+      // Ensure data directory exists
+      const dataDir = path.dirname(this.backtestResultsFile)
+      await fs.mkdir(dataDir, { recursive: true })
+
+      const backtests = Array.from(this.activeBacktests.values()).map(backtest => ({
+        id: backtest.id,
+        definitionId: backtest.definitionId,
+        name: backtest.name,
+        symbol: backtest.symbol,
+        algorithmName: backtest.algorithmName,
+        startDate: backtest.startDate,
+        endDate: backtest.endDate,
+        status: backtest.status,
+        progress: backtest.progress,
+        createdAt: backtest.createdAt,
+        startedAt: backtest.startedAt,
+        completedAt: backtest.completedAt,
+        lagTicks: backtest.lagTicks,
+        startingCapital: backtest.startingCapital,
+        commission: backtest.commission,
+        trades: backtest.trades,
+        results: backtest.results,
+        logs: backtest.logs,
+        error: backtest.error
+      }))
+
+      const data = {
+        backtests,
+        lastSaved: new Date().toISOString()
+      }
+
+      await fs.writeFile(this.backtestResultsFile, JSON.stringify(data, null, 2))
+    } catch (error) {
+      console.error('[BacktestingService] Error saving backtest results:', error.message)
+    }
   }
 }

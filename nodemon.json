@@ -1,5 +1,5 @@
 {
-  "watch": ["src"],
+  "watch": ["src", "routes"],
   "ignore": [
     "data/**/*",
     "data/*",

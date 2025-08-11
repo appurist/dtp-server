@@ -185,7 +185,7 @@ router.get('/runs/:runId/trades', async (req, res) => {
 router.delete('/runs/:runId', async (req, res) => {
   try {
     const { runId } = req.params;
-    const deleted = backtestingService.deleteBacktest(runId);
+    const deleted = await backtestingService.deleteBacktest(runId);
 
     if (!deleted) {
       return res.status(404).json({
