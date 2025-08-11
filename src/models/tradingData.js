@@ -119,6 +119,12 @@ export class TradingData {
         return [...this.closes]
       case 'volume':
         return [...this.volumes]
+      case 'typical':
+        return this.getTypicalPrice()
+      case 'weighted':
+        return this.getWeightedClose()
+      case 'median':
+        return this.highs.map((high, i) => (high + this.lows[i]) / 2)
       default:
         return [...this.closes]
     }
