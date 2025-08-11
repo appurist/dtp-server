@@ -1,0 +1,91 @@
+{
+  "name": "SMA-3-6-12-Direction-Confirm",
+  "description": "Directional SMA(6) sets bias; enter when SMA(3) confirms against SMA(12). Exit when directional SMA reverses.",
+  "version": "1.0",
+  "createdTime": "2025-08-11T00:00:00.000Z",
+  "lastModifiedTime": "2025-08-11T00:00:00.000Z",
+  "favorite": false,
+  "indicators": [
+    {
+      "name": "FastSMA_3",
+      "type": "SMA",
+      "parameters": { "period": 3, "priceType": "median" }
+    },
+    {
+      "name": "DirectionSMA_6",
+      "type": "SMA",
+      "parameters": { "period": 6, "priceType": "median" }
+    },
+    {
+      "name": "SlowSMA_12",
+      "type": "SMA",
+      "parameters": { "period": 12, "priceType": "median" }
+    }
+  ],
+  "entryConditions": [
+    {
+      "type": "slope",
+      "side": "LONG",
+      "parameters": {
+        "indicator": "DirectionSMA_6",
+        "direction": "up",
+        "period": 3
+      },
+      "description": "Directional SMA trending up (long bias)"
+    },
+    {
+      "type": "crossover",
+      "side": "LONG",
+      "parameters": {
+        "indicator1": "FastSMA_3",
+        "indicator2": "SlowSMA_12",
+        "direction": "above"
+      },
+      "description": "Fast SMA crosses above Slow SMA (confirmation)"
+    },
+
+    {
+      "type": "slope",
+      "side": "SHORT",
+      "parameters": {
+        "indicator": "DirectionSMA_6",
+        "direction": "down",
+        "period": 3
+      },
+      "description": "Directional SMA trending down (short bias)"
+    },
+    {
+      "type": "crossover",
+      "side": "SHORT",
+      "parameters": {
+        "indicator1": "FastSMA_3",
+        "indicator2": "SlowSMA_12",
+        "direction": "below"
+      },
+      "description": "Fast SMA crosses below Slow SMA (confirmation)"
+    }
+  ],
+  "exitConditions": [
+    {
+      "type": "slope",
+      "side": "LONG",
+      "parameters": {
+        "indicator": "DirectionSMA_6",
+        "direction": "down",
+        "period": 3
+      },
+      "description": "Exit LONG when directional SMA turns down"
+    },
+    {
+      "type": "slope",
+      "side": "SHORT",
+      "parameters": {
+        "indicator": "DirectionSMA_6",
+        "direction": "up",
+        "period": 3
+      },
+      "description": "Exit SHORT when directional SMA turns up"
+    }
+  ]
+}
+
