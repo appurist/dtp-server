@@ -56,8 +56,11 @@ export class BacktestingService {
       backtest.addLog('info', 'Starting backtest')
       backtest.start()
 
-      // Load algorithm
-      this.algorithmEngine.loadAlgorithm(algorithm)
+      // Dynamically load algorithm if not already loaded
+      const loadedAlgorithm = await tradingInstanceManager.getOrLoadAlgorithm(algorithm.name);
+
+      // Load algorithm into the engine
+      this.algorithmEngine.loadAlgorithm(loadedAlgorithm);
       this.algorithmEngine.reset()
 
       if (tradingData.count === 0) {

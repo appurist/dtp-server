@@ -535,6 +535,21 @@ export class TradingInstanceManager extends EventEmitter {
   }
 
   /**
+   * Dynamically load algorithm if not already loaded
+   */
+  async getOrLoadAlgorithm(algorithmName) {
+    if (!this.algorithms.has(algorithmName)) {
+      await this.loadAlgorithms();
+
+      if (!this.algorithms.has(algorithmName)) {
+        throw new Error(`Algorithm '${algorithmName}' not found even after refresh.`);
+      }
+    }
+
+    return this.algorithms.get(algorithmName);
+  }
+
+  /**
    * Get available algorithms
    */
   getAlgorithms() {
