@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { expandPath } from '../utils/expandPath.js';
 
 /**
  * Service for managing historical data caching
@@ -13,10 +14,7 @@ class HistoricalDataService {
    * Get the historical data storage path
    */
   getHistoricalDataPath() {
-    let dataPath = process.env.DATA_PATH || './data';
-    if (dataPath.startsWith('~/')) {
-      dataPath = path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
-    }
+    let dataPath = expandPath(process.env.DATA_PATH || './data');
     return path.join(dataPath, 'historical');
   }
 

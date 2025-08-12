@@ -3,6 +3,7 @@ import { TradingInstance, InstanceStatus } from '../models/tradingInstance.js'
 import { projectXClient } from './projectXClient.js'
 import fs from 'fs/promises'
 import path from 'path'
+import { expandPath } from '../utils/expandPath.js'
 
 /**
  * Trading Instance Manager
@@ -18,7 +19,7 @@ export class TradingInstanceManager extends EventEmitter {
     this.algorithms = new Map() // algorithmName -> algorithm config
 
     // Configuration
-    this.dataPath = this.expandDataPath(process.env.DATA_PATH || './data')
+    this.dataPath = expandPath(process.env.DATA_PATH || './data')
     this.instancesFile = path.join(this.dataPath, 'instances.json')
     this.algorithmsPath = this.getAlgorithmsPath()
     this.connectionFile = path.join(this.dataPath, 'connection.json')
@@ -35,20 +36,10 @@ export class TradingInstanceManager extends EventEmitter {
   }
 
   /**
-   * Expand tilde in data path
-   */
-  expandDataPath(dataPath) {
-    if (dataPath.startsWith('~/')) {
-      return path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
-    }
-    return dataPath;
-  }
-
-  /**
    * Get algorithms path (subfolder of DATA_PATH)
    */
   getAlgorithmsPath() {
-    const dataPath = this.expandDataPath(process.env.DATA_PATH || './data');
+    const dataPath = expandPath(process.env.DATA_PATH || './data');
     return path.join(dataPath, 'algorithms');
   }
 
@@ -795,5 +786,6 @@ export const tradingInstanceManager = {
   on: (...args) => tradingInstanceManager.instance.on(...args),
   off: (...args) => tradingInstanceManager.instance.off(...args),
   emit: (...args) => tradingInstanceManager.instance.emit(...args),
-  removeAllListeners: (...args) => tradingInstanceManager.instance.removeAllListeners(...args)
+  removeAllListeners: (...args) => tradingInstanceManager.instance.removeAllListeners(...args),
+  getOrLoadAlgorithm: (...args) => tradingInstanceManager.instance.getOrLoadAlgorithm(...args),
 }

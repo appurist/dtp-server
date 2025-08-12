@@ -1,11 +1,12 @@
 import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
+import { expandPath } from '../utils/expandPath.js';
 
 const router = express.Router();
 
 // Data storage paths
-const DATA_PATH = process.env.DATA_PATH || './data';
+const DATA_PATH = expandPath(process.env.DATA_PATH || './data');
 const UI_CONFIG_FILE = path.join(DATA_PATH, 'ui-config.json');
 const USER_SETTINGS_FILE = path.join(DATA_PATH, 'user-settings.json');
 const WATCHLISTS_FILE = path.join(DATA_PATH, 'watchlists.json');

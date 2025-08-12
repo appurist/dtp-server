@@ -9,6 +9,8 @@ import { TradingData } from '../models/TradingData.js'
 import { TradingSides } from '../models/TradingAlgorithm.js'
 import fs from 'fs/promises'
 import path from 'path'
+import { tradingInstanceManager } from './tradingInstanceManager.js';
+import { expandPath } from '../utils/expandPath.js'
 
 /**
  * Backtesting Service class
@@ -17,7 +19,7 @@ export class BacktestingService {
   constructor() {
     this.activeBacktests = new Map() // backtestId -> BacktestInstance
     this.algorithmEngine = new AlgorithmEngine()
-    this.backtestResultsFile = path.join(process.env.DATA_PATH || './data', 'backtest-results.json')
+    this.backtestResultsFile = path.join(expandPath(process.env.DATA_PATH || './data'), 'backtest-results.json')
 
     // Load existing backtest results on startup
     this.loadBacktestResults()
@@ -180,6 +182,23 @@ export class BacktestingService {
           this.algorithmEngine.setPositionDetails(0, 1)
         }
       }
+
+      // Log indicator values for debugging
+      console.log(`[BacktestingService] Indicator values at bar ${i}:`, {
+        SMA3: this.algorithmEngine.getIndicatorValue('SMA3', i),
+        SD: this.algorithmEngine.getIndicatorValue('SD', i)
+      });
+
+      // Log entry condition evaluation
+      console.log(`[BacktestingService] Entry condition evaluation at bar ${i}:`, {
+        SD: this.algorithmEngine.getIndicatorValue('SD', i) > 4.5
+      });
+
+      // Log exit condition evaluation
+      console.log(`[BacktestingService] Exit condition evaluation at bar ${i}:`, {
+        slopeChange: this.algorithmEngine.checkSlopeChange('SMA3', i),
+        SD: this.algorithmEngine.getIndicatorValue('SD', i) < 4.5
+      });
 
       // Update progress
       processedBars++

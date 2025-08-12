@@ -2,11 +2,12 @@ import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { homedir } from 'os';
+import { expandPath } from '../utils/expandPath.js';
 
 const router = express.Router();
 
 const getAlgorithmsPath = () => {
-  let dataPath = process.env.DATA_PATH || './data';
+  let dataPath = expandPath(process.env.DATA_PATH || './data');
   if (dataPath.startsWith('~/')) {
     dataPath = path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
   }

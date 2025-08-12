@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-import path, { dirname, join } from 'path';
+import path, { dirname } from 'path';
 
 // Load environment variables FIRST, before any other imports
 const __filename = fileURLToPath(import.meta.url);
@@ -19,6 +19,7 @@ import fs from 'fs/promises';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { tradingInstanceManager } from './services/tradingInstanceManager.js';
+import { expandPath } from './utils/expandPath.js';
 
 const app = express();
 const server = createServer(app);
@@ -100,13 +101,6 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Ensure data directories exist
 const ensureDirectories = async () => {
-  const expandPath = (path) => {
-    if (path.startsWith('~/')) {
-      return join(process.env.HOME || process.env.USERPROFILE, path.slice(2));
-    }
-    return path;
-  };
-
   const dataPath = expandPath(process.env.DATA_PATH || './data');
   const dirs = [
     dataPath,

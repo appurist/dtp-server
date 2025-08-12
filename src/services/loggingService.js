@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { expandPath } from '../utils/expandPath.js';
 
 /**
  * Service for managing application logging
@@ -20,10 +21,7 @@ class LoggingService {
    * Get the log storage path
    */
   getLogPath() {
-    let dataPath = process.env.DATA_PATH || './data';
-    if (dataPath.startsWith('~/')) {
-      dataPath = path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
-    }
+    let dataPath = expandPath(process.env.DATA_PATH || './data');
     return path.join(dataPath, 'logs');
   }
 
@@ -41,9 +39,9 @@ class LoggingService {
    */
   formatMessage(level, message, context = {}) {
     const timestamp = new Date().toISOString();
-    const contextStr = Object.keys(context).length > 0 ? 
+    const contextStr = Object.keys(context).length > 0 ?
       ` | ${JSON.stringify(context)}` : '';
-    
+
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${contextStr}`;
   }
 
@@ -61,9 +59,9 @@ class LoggingService {
 
       const logFileName = `app-${new Date().toISOString().split('T')[0]}.log`;
       const logFilePath = path.join(this.logPath, logFileName);
-      
+
       const formattedMessage = this.formatMessage(level, message, context);
-      
+
       await fs.appendFile(logFilePath, formattedMessage + '\n');
     } catch (error) {
       console.error('Failed to write to log file:', error);
@@ -111,16 +109,16 @@ class LoggingService {
     try {
       const logFileName = `app-${new Date().toISOString().split('T')[0]}.log`;
       const logFilePath = path.join(this.logPath, logFileName);
-      
+
       const content = await fs.readFile(logFilePath, 'utf8');
       const lines = content.trim().split('\n').filter(line => line.length > 0);
-      
+
       let filteredLines = lines;
       if (level) {
         const levelFilter = `[${level.toUpperCase()}]`;
         filteredLines = lines.filter(line => line.includes(levelFilter));
       }
-      
+
       // Return most recent entries
       return filteredLines.slice(-limit).map(line => {
         const match = line.match(/^\[([^\]]+)\] \[([^\]]+)\] (.+)$/);
@@ -130,7 +128,7 @@ class LoggingService {
             timestamp: new Date(timestamp),
             level: logLevel.toLowerCase(),
             message: message.split(' | ')[0],
-            context: message.includes(' | ') ? 
+            context: message.includes(' | ') ?
               JSON.parse(message.split(' | ')[1]) : {}
           };
         }
@@ -164,7 +162,7 @@ class LoggingService {
           };
         })
         .sort((a, b) => b.date - a.date);
-      
+
       return logFiles;
     } catch (error) {
       console.error('Error getting log files:', error);
@@ -180,9 +178,9 @@ class LoggingService {
       const files = await this.getLogFiles();
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-      
+
       const filesToDelete = files.filter(file => file.date < cutoffDate);
-      
+
       for (const file of filesToDelete) {
         try {
           await fs.unlink(file.path);
@@ -191,7 +189,7 @@ class LoggingService {
           console.error(`Failed to delete log file ${file.filename}:`, error);
         }
       }
-      
+
       return filesToDelete.length;
     } catch (error) {
       console.error('Error cleaning up old logs:', error);

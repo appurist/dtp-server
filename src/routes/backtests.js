@@ -7,6 +7,7 @@ import { historicalDataService } from '../services/historicalDataService.js';
 import { TradingData } from '../models/TradingData.js';
 import { tradingInstanceManager } from '../services/tradingInstanceManager.js';
 import { BacktestStatus, BacktestPhaseStatus } from '../models/BacktestInstance.js';
+import { expandPath } from '../utils/expandPath.js';
 
 const router = express.Router();
 
@@ -17,10 +18,7 @@ const backtestingService = new BacktestingService();
  * Get backtests directory path
  */
 const getBacktestsPath = () => {
-  let dataPath = process.env.DATA_PATH || './data';
-  if (dataPath.startsWith('~/')) {
-    dataPath = path.join(process.env.HOME || process.env.USERPROFILE, dataPath.slice(2));
-  }
+  const dataPath = expandPath(process.env.DATA_PATH || './data');
   return path.join(dataPath, 'backtests');
 };
 
