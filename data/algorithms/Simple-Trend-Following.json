@@ -1,0 +1,56 @@
+{
+  "name": "Simple-Trend-Following",
+  "description": "Follows the SMA trend (period 3) when SD > 4.5, exits if slope direction changes or SD falls below threshold.",
+  "version": "1.0",
+  "createdTime": "2025-08-12T00:00:00.000Z",
+  "lastModifiedTime": "2025-08-12T00:00:00.000Z",
+  "favorite": false,
+  "indicators": [
+    {
+      "name": "SMA3",
+      "type": "SMA",
+      "parameters": {
+        "period": 3,
+        "priceType": "close"
+      }
+    },
+    {
+      "name": "SD",
+      "type": "StandardDeviation",
+      "parameters": {
+        "period": 12
+      }
+    }
+  ],
+  "entryConditions": [
+    {
+      "type": "threshold",
+      "side": "LONG",
+      "parameters": {
+        "indicator": "SD",
+        "threshold": 4.5,
+        "comparison": ">"
+      },
+      "description": "Enter LONG when SD > 4.5 following SMA trend"
+    }
+  ],
+  "exitConditions": [
+    {
+      "type": "slopeChange",
+      "parameters": {
+        "indicator": "SMA3",
+        "direction": "reverse"
+      },
+      "description": "Exit if SMA slope direction changes"
+    },
+    {
+      "type": "threshold",
+      "parameters": {
+        "indicator": "SD",
+        "threshold": 4.5,
+        "comparison": "<"
+      },
+      "description": "Exit if SD falls below 4.5"
+    }
+  ]
+}
