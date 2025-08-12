@@ -16,7 +16,7 @@
     },
     {
       "name": "SD",
-      "type": "StandardDeviation",
+      "type": "SD",
       "parameters": {
         "period": 12
       }
