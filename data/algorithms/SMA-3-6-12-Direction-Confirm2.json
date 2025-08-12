@@ -1,5 +1,5 @@
 {
-  "name": "SMA-3-6-12-Direction-Confirm",
+  "name": "SMA-3-6-12-Direction-Confirm2",
   "description": "Directional SMA(6) sets bias via slope; enter when SMA(3) crosses SMA(12) in the bias direction. Exit when directional SMA slope reverses.",
   "version": "1.0",
   "createdTime": "2025-08-11T00:00:00.000Z",

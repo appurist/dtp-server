@@ -908,10 +908,13 @@ Delete a backtest definition.
 #### POST /api/backtests/{id}/run
 Start executing a backtest from a saved definition.
 
+> Note: If not provided in the request or backtest definition, the server defaults startingCapital to 100000.
+
+
 **Request Body:**
 ```json
 {
-  "startingCapital": 10000,
+  "startingCapital": 100000,
   "commission": 0
 }
 ```
@@ -998,6 +1001,9 @@ Get detailed results for a specific backtest run.
     "executedAt": "2025-08-08T10:00:00.000Z",
     "completedAt": "2025-08-08T10:05:00.000Z",
     "status": "COMPLETED",
+
+> Per-trade pnlPercent in trades reflects the percent change relative to the run's original starting capital, not the entry price or current balance.
+
     "progress": 100,
     "error": null,
     "results": {
@@ -1019,7 +1025,7 @@ Get detailed results for a specific backtest run.
       "algorithmName": "SMA Crossover",
       "startDate": "2025-07-27",
       "endDate": "2025-08-02",
-      "startingCapital": 10000,
+      "startingCapital": 100000,
       "commission": 0
     }
   }

@@ -35,8 +35,8 @@ export class BacktestingService {
       startDate: config.startDate,
       endDate: config.endDate,
       lagTicks: config.lagTicks || 1,
-      startingCapital: config.startingCapital || 10000,
-      commission: config.commission || 0
+      startingCapital: (config.startingCapital ?? 100000),
+      commission: (config.commission ?? 0)
     })
 
     this.activeBacktests.set(backtest.id, backtest)
@@ -103,6 +103,10 @@ export class BacktestingService {
     let positionQuantity = 1
     let currentTrade = null
 
+
+	    // Track running capital to compute per-trade percent impact on account balance
+	    let runningCapital = backtest.startingCapital
+
     const totalBars = tradingData.count
     let processedBars = 0
 
@@ -150,9 +154,17 @@ export class BacktestingService {
             currentTrade.exitSignal = signal
             currentTrade.calculatePnL()
 
+            // Set pnlPercent as percent change relative to starting capital
+            if (backtest.startingCapital) {
+              currentTrade.pnlPercent = (currentTrade.pnl / backtest.startingCapital) * 100
+            } else {
+              currentTrade.pnlPercent = 0
+            }
+            runningCapital += currentTrade.pnl
+
             backtest.addTrade(currentTrade)
             backtest.addLog('info',
-              `Exited ${currentPosition} position at ${signal.price}, P&L: ${currentTrade.pnl.toFixed(2)}`
+              `Exited ${currentPosition} position at ${signal.price}, P&L: ${currentTrade.pnl.toFixed(2)} (${currentTrade.pnlPercent.toFixed(2)}%)`
             )
           }
 
@@ -189,9 +201,17 @@ export class BacktestingService {
       currentTrade.exitPrice = lastCandle.close
       currentTrade.calculatePnL()
 
+      // Set pnlPercent as percent change relative to starting capital
+      if (backtest.startingCapital) {
+        currentTrade.pnlPercent = (currentTrade.pnl / backtest.startingCapital) * 100
+      } else {
+        currentTrade.pnlPercent = 0
+      }
+      runningCapital += currentTrade.pnl
+
       backtest.addTrade(currentTrade)
       backtest.addLog('info',
-        `Closed ${currentPosition} position at end of data at ${lastCandle.close}, P&L: ${currentTrade.pnl.toFixed(2)}`
+        `Closed ${currentPosition} position at end of data at ${lastCandle.close}, P&L: ${currentTrade.pnl.toFixed(2)} (${currentTrade.pnlPercent.toFixed(2)}%)`
       )
     }
 

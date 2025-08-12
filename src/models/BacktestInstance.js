@@ -60,6 +60,9 @@ export class TradeRecord {
       (this.entryPrice - this.exitPrice)
 
     this.pnl = priceDiff * this.quantity - this.commission
+    // pnlPercent represents percent change in account balance caused by this trade.
+    // The actual value will be assigned by the backtest runner based on running capital.
+    // Default here remains price-based percent for backward compatibility; it will be overridden.
     this.pnlPercent = (priceDiff / this.entryPrice) * 100
 
     if (this.entryTime && this.exitTime) {

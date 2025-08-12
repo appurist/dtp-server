@@ -488,8 +488,9 @@ router.post('/:id/run', async (req, res) => {
       startDate: backtestDef.startDate,
       endDate: backtestDef.endDate,
       lagTicks: backtestDef.lagTicks || 1,
-      startingCapital: req.body.startingCapital || 10000,
-      commission: req.body.commission || 0
+      // Prefer explicit request value, then definition value, then default
+      startingCapital: (req.body.startingCapital ?? backtestDef.startingCapital ?? 100000),
+      commission: (req.body.commission ?? backtestDef.commission ?? 0)
     });
 
     // Start backtest execution asynchronously
