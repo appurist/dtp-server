@@ -1,0 +1,21 @@
+{
+  "name": "SMA-3-Median-Slope",
+  "description": "Single median-based SMA(3). Enter when its slope is positive/negative for LONG/SHORT; exit on slope reversal.",
+  "version": "1.0",
+  "createdTime": "2025-08-12T00:00:00.000Z",
+  "lastModifiedTime": "2025-08-12T00:00:00.000Z",
+  "favorite": false,
+  "indicators": [
+    { "name": "SMA_3",         "type": "SMA",   "parameters": { "period": 3, "source": "median" } },
+    { "name": "SMA_3_Slope",   "type": "SLOPE", "parameters": { "source": "SMA_3", "period": 3 } }
+  ],
+  "entryConditions": [
+    { "type": "slope", "side": "LONG",  "parameters": { "indicator": "SMA_3_Slope", "direction": "up",   "threshold": 0 }, "description": "SMA(3) slope > 0 for LONG entry" },
+    { "type": "slope", "side": "SHORT", "parameters": { "indicator": "SMA_3_Slope", "direction": "down", "threshold": 0 }, "description": "SMA(3) slope < 0 for SHORT entry" }
+  ],
+  "exitConditions": [
+    { "type": "slope", "side": "LONG",  "parameters": { "indicator": "SMA_3_Slope", "direction": "down", "threshold": 0 }, "description": "Exit LONG when SMA(3) slope turns negative" },
+    { "type": "slope", "side": "SHORT", "parameters": { "indicator": "SMA_3_Slope", "direction": "up",   "threshold": 0 }, "description": "Exit SHORT when SMA(3) slope turns positive" }
+  ]
+}
+
