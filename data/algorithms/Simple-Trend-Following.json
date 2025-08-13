@@ -18,7 +18,8 @@
       "name": "SD",
       "type": "SD",
       "parameters": {
-        "period": 12
+        "period": 12,
+        "source": "close"
       }
     }
   ],

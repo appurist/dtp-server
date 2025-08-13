@@ -114,6 +114,50 @@ export class AlgorithmEngine {
   }
 
   /**
+   * Check if the slope direction has changed at a specific index
+   * @param {string} name - The name of the indicator
+   * @param {number} index - The index at which to check slope change
+   * @returns {boolean} True if slope direction has changed
+   */
+  checkSlopeChange(name, index) {
+    if (!this.tradingData || index < 2) {
+      return false;
+    }
+
+    const values = this.tradingData.getIndicator(name);
+    if (!values || values.length < 3) {
+      return false;
+    }
+
+    const currentSlope = values[index] - values[index - 1];
+    const previousSlope = values[index - 1] - values[index - 2];
+
+    // True if slopes have different signs (direction change)
+    return (currentSlope * previousSlope) < 0;
+  }
+
+  /**
+   * Get indicator value at a specific index
+   * @param {string} name - The name of the indicator
+   * @param {number} index - The index at which to get the value
+   * @returns {number|null} The indicator value or null if not found
+   */
+  getIndicatorValue(name, index) {
+    if (!this.tradingData) {
+      console.warn('Trading data not loaded');
+      return null;
+    }
+    
+    if (!this.tradingData.hasIndicator(name)) {
+      console.warn(`Indicator ${name} not found`);
+      return null;
+    }
+    
+    const values = this.tradingData.getIndicator(name);
+    return values[index];
+  }
+
+  /**
    * Calculate a single indicator
    */
   calculateIndicator(config) {
