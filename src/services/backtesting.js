@@ -74,6 +74,10 @@ export class BacktestingService {
       // Set trading data in algorithm engine
       this.algorithmEngine.setTradingData(tradingData)
 
+      // Calculate initial indicators
+      console.log('[DEBUG] Calculating initial indicators...');
+      this.algorithmEngine.calculateIndicators();
+
       // Run the backtest simulation
       await this.runSimulation(backtest, tradingData, onProgress)
 
@@ -183,22 +187,25 @@ export class BacktestingService {
         }
       }
 
-      // Log indicator values for debugging
+      // Commented out repeated debug messages for indicator values and entry condition evaluation
+      /*
       console.log(`[BacktestingService] Indicator values at bar ${i}:`, {
         SMA3: this.algorithmEngine.getIndicatorValue('SMA3', i),
         SD: this.algorithmEngine.getIndicatorValue('SD', i)
       });
 
-      // Log entry condition evaluation
       console.log(`[BacktestingService] Entry condition evaluation at bar ${i}:`, {
         SD: this.algorithmEngine.getIndicatorValue('SD', i) > 4.5
       });
+      */
 
-      // Log exit condition evaluation
+      // Commented out repeated debug message for exit condition evaluation
+      /*
       console.log(`[BacktestingService] Exit condition evaluation at bar ${i}:`, {
         slopeChange: this.algorithmEngine.checkSlopeChange('SMA3', i),
         SD: this.algorithmEngine.getIndicatorValue('SD', i) < 4.5
       });
+      */
 
       // Update progress
       processedBars++

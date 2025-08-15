@@ -34,6 +34,7 @@ export class AlgorithmEngine {
     this.debugMode = false
     this.entryPrice = 0
     this.positionQuantity = 1
+    this.slopeChangeWarningLogged = false
   }
 
   /**
@@ -99,14 +100,21 @@ export class AlgorithmEngine {
     }
 
     try {
+      console.log(`[DEBUG] Starting indicator calculations for ${this.algorithm.name}`);
+      console.log(`[DEBUG] Trading data spans ${this.tradingData?.count || 0} bars`);
+      console.log(`[DEBUG] Indicators to calculate:`, this.algorithm.indicators.map(i => `${i.name} (${i.type})`));
+
       this.algorithm.indicators.forEach(indicatorConfig => {
         this.calculateIndicator(indicatorConfig)
       })
 
-      if (this.debugMode) {
-        console.log(`Calculated ${this.algorithm.indicators.length} indicators for ${this.algorithm.name}`)
-        console.log('Available indicators:', this.tradingData.getIndicatorNames())
-      }
+      const availableIndicators = this.tradingData.getIndicatorNames();
+      console.log(`[DEBUG] Calculated ${this.algorithm.indicators.length} indicators for ${this.algorithm.name}`);
+      console.log(`[DEBUG] Available indicators:`, availableIndicators);
+      availableIndicators.forEach(name => {
+        const values = this.tradingData.getIndicator(name);
+        console.log(`[DEBUG] Indicator ${name} has ${values?.length || 0} values`);
+      });
     } catch (error) {
       console.error(`Error calculating indicators for algorithm ${this.algorithm.name}:`, error)
       throw error
@@ -147,12 +155,12 @@ export class AlgorithmEngine {
       console.warn('Trading data not loaded');
       return null;
     }
-    
+
     if (!this.tradingData.hasIndicator(name)) {
       console.warn(`Indicator ${name} not found`);
       return null;
     }
-    
+
     const values = this.tradingData.getIndicator(name);
     return values[index];
   }
@@ -260,10 +268,13 @@ export class AlgorithmEngine {
           break
 
         case 'SD':
+          const priceData = this.tradingData.getPriceData(parameters.source || 'close');
+          console.log(`[DEBUG] Calculating SD with source ${parameters.source || 'close'}, period ${parameters.period}, data length: ${priceData?.length}`);
           values = indicators.calculateSD(
-            this.tradingData.getPriceData(parameters.source || 'close'),
+            priceData,
             parameters.period
-          )
+          );
+          console.log(`[DEBUG] SD calculation result length: ${values?.length}`);
           break
 
         case 'PO':
@@ -299,8 +310,18 @@ export class AlgorithmEngine {
           return
       }
 
+      // Debug log to verify SD calculation
+      if (type === 'StandardDeviation') {
+        console.log(`[DEBUG] Attempting to calculate StandardDeviation for ${name}`);
+      }
+
       // Store the calculated values
-      this.tradingData.setIndicator(name, values)
+      this.tradingData.setIndicator(name, values);
+
+      // Debug log to confirm storage
+      if (type === 'StandardDeviation') {
+        console.log(`[DEBUG] Stored StandardDeviation for ${name}:`, values);
+      }
 
       if (this.debugMode) {
         console.log(`Calculated ${name} (${type}): ${values.length} values`)
@@ -456,6 +477,9 @@ export class AlgorithmEngine {
 
         case 'position-pnl':
           return this.evaluatePositionPnLCondition(condition, index)
+
+        case 'slopechange':
+          return this.evaluateSlopeChangeCondition(condition, index);
 
         default:
           console.warn(`Unknown condition type: ${condition.type}`)
@@ -669,5 +693,16 @@ export class AlgorithmEngine {
     }
 
     return result
+  }
+
+  /**
+   * Evaluate slope change condition (placeholder implementation)
+   */
+  evaluateSlopeChangeCondition(condition, index) {
+    if (!this.slopeChangeWarningLogged) {
+      console.warn('evaluateSlopeChangeCondition is not yet implemented');
+      this.slopeChangeWarningLogged = true;
+    }
+    return false; // Default behavior
   }
 }
